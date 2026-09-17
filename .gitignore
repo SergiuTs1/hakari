@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 hakari-*.json
+
+# локальні налаштування Claude Code, крім спільного launch.json
+.claude/*
+!.claude/launch.json
