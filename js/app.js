@@ -268,7 +268,10 @@ function renderLog() {
   grid.textContent = '';
   for (const d of recentMap(state.entries)) {
     const i = document.createElement('i');
-    const before = start && d.date < start;
+    // Дні до першого запису — не пропуски: тоді ще нічого не почалось.
+    // Без цього чисте встановлення зустрічає людину тридцятьма золотими
+    // рисками, тобто докором за невідстежені дні, яких не існувало.
+    const before = !start || d.date < start;
     if (d.on) i.className = 'is-on';
     else if (!before) i.className = 'is-gap';
     i.title = fmtShort(d.date);

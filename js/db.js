@@ -69,9 +69,12 @@ function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
 
 /* ── профіль ──────────────────────────────────────────────── */
 
+/* Порожній навмисно: репозиторій публічний, тож жодних особистих значень
+   у дефолтах. Зріст і стать користувач вводить у застосунку — вони
+   знадобляться формулі US Navy у фазі 3. */
 export const DEFAULT_PROFILE = {
-  height: 175,
-  sex: 'm',
+  height: null,
+  sex: null,
   goalWeight: null,
   goalRate: 0.5,      // цільовий темп, кг/тиждень
   startDate: null,
