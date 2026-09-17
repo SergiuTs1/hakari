@@ -1,0 +1,290 @@
+/* 秤 hakari — layout & components */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--t-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* iOS: не даємо гумовому скролу тягнути весь застосунок */
+  overscroll-behavior-y: none;
+}
+
+/* повністю прибираємо підсвітку тапу — вона руйнує спокій */
+* { -webkit-tap-highlight-color: transparent; }
+
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+/* ─────────────────────────  каркас  ───────────────────────── */
+
+.app {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  padding-top: max(26px, env(safe-area-inset-top));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.screen { display: none; animation: rise var(--dur) var(--ease); }
+.screen.is-active { display: block; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ─────────────────────────  типографіка  ───────────────────────── */
+
+.label {
+  font: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--stack-lg);
+}
+.head__kanji { font: var(--t-kanji); letter-spacing: .06em; }
+.head__kanji span {
+  font: var(--t-label);
+  letter-spacing: var(--ls-label);
+  color: var(--fg-dim);
+  margin-left: 10px;
+  text-transform: uppercase;
+}
+.head__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); }
+
+.rule { height: 1px; background: var(--hairline); border: 0; margin: var(--stack-lg) 0; }
+
+/* ─────────────────────────  головна цифра  ───────────────────────── */
+
+.figure { text-align: center; }
+
+.figure__value {
+  font: var(--t-numeral);
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+.figure__unit  { font-size: 19px; color: var(--fg-dim); margin-left: 6px; letter-spacing: 0; }
+.figure__label { display: block; margin-top: 14px; }
+
+.delta {
+  margin-top: 18px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
+  text-align: center;
+}
+.delta b { font-weight: 400; color: var(--koke); }
+.delta b.is-flat { color: var(--fg-dim); }
+.delta b.is-warn { color: var(--shu); }
+
+/* ─────────────────────────  енсо 円相  ───────────────────────── */
+
+/* Кільце свідомо просторе: цифра живе всередині, і при вазі 100+ кг
+   вона все одно не має торкатись штриха. */
+.enso { display: block; margin: 0 auto; width: 200px; height: 200px; }
+.enso__track { fill: none; stroke: var(--hairline); stroke-width: 1.5; }
+.enso__arc {
+  fill: none;
+  stroke: var(--ink-line);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .8s var(--ease);
+}
+.enso-wrap { position: relative; }
+.enso-wrap .figure {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─────────────────────────  ввід ваги  ───────────────────────── */
+
+.entry { margin-top: var(--stack-lg); }
+
+.entry__row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 12px;
+}
+
+.entry__input {
+  flex: 1;
+  font: var(--t-numeral-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  -webkit-appearance: none;
+}
+.entry__input::placeholder { color: var(--hairline); }
+.entry__unit { font-size: 15px; color: var(--fg-dim); }
+
+.entry__save {
+  font: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding: 8px 2px 8px 14px;
+  transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.entry__save:disabled { opacity: .28; }
+.entry__save:not(:disabled) { color: var(--accent); }
+
+/* перемикачі — один тап */
+.toggles { display: flex; gap: 10px; margin-top: 22px; }
+
+.toggle {
+  flex: 1;
+  border: 1px solid var(--hairline);
+  padding: 15px 10px 13px;
+  text-align: center;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  color: var(--fg-dim);
+}
+.toggle__kanji { font: var(--t-kanji); display: block; margin-bottom: 8px; }
+.toggle__label { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
+.toggle[aria-pressed="true"] { border-color: var(--ink-line); color: var(--fg); }
+
+/* ─────────────────────────  графік  ───────────────────────── */
+
+.chart { width: 100%; display: block; overflow: visible; }
+.chart__raw    { fill: none; stroke: var(--fg-dim); opacity: .36; }
+.chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.chart__goal   { fill: none; stroke: var(--koke); stroke-width: 1; stroke-dasharray: 2 5; opacity: .85; }
+.chart__tick   { font: var(--t-label); letter-spacing: .1em; fill: var(--fg-dim); }
+
+.ranges { display: flex; gap: 22px; margin-bottom: 26px; }
+.ranges button {
+  font: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding-bottom: 5px;
+  border-bottom: 1px solid transparent;
+}
+.ranges button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--ink-line); }
+
+/* ─────────────────────────  пари ключ–значення  ───────────────────────── */
+
+.kv { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid var(--hairline); gap: 16px; }
+.kv:last-child, .kv--bare { border-bottom: 0; }
+.kv__v { font-variant-numeric: tabular-nums; font-size: 15px; }
+.kv__v.is-dim { color: var(--fg-dim); }
+.kv__v.is-kin { color: var(--kin); }
+.kv__v.is-warn { color: var(--shu); }
+
+/* ─────────────────────────  журнал  ───────────────────────── */
+
+.log { margin: 0; padding: 0; list-style: none; }
+.log__item { display: flex; align-items: baseline; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--hairline); }
+.log__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); width: 64px; flex: none; }
+.log__w { font-variant-numeric: tabular-nums; font-size: 16px; }
+.log__marks { margin-left: auto; font: var(--t-kanji); font-size: 13px; color: var(--fg-dim); letter-spacing: .3em; }
+.log__del { font-size: 17px; color: var(--fg-dim); opacity: .35; padding: 0 2px 0 12px; line-height: 1; }
+
+/* Календар-кінцугі: тридцять тонких рисок, а не сітка квадратів.
+   Квадрати читаються як таблиця досягнень і тиснуть; риски — як
+   зарубки тушшю. Пропуск не червоний і не порожній, а золотий:
+   тріщину не ховають, її показують. */
+.grid { display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; margin-top: 12px; }
+.grid i { display: block; height: 38px; background: var(--hairline); }
+.grid i.is-on  { background: var(--ink-line); }
+.grid i.is-gap { background: var(--kin); opacity: .5; }
+
+/* ─────────────────────────  дії  ───────────────────────── */
+
+.act {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 15px;
+}
+.act small { display: block; margin-top: 5px; font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-dim); }
+.act small.is-kin { color: var(--kin); }
+
+.field { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid var(--hairline); gap: 16px; }
+.field input {
+  font: inherit; font-variant-numeric: tabular-nums; text-align: right;
+  background: none; border: 0; outline: none; color: var(--fg);
+  width: 120px; padding: 0; border-radius: 0; -webkit-appearance: none;
+}
+
+/* ─────────────────────────  нижня навігація  ───────────────────────── */
+
+.nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  background: var(--bg);
+  border-top: 1px solid var(--hairline);
+  padding: 15px 0 calc(15px + env(safe-area-inset-bottom));
+}
+.nav button {
+  flex: 0 1 120px;
+  text-align: center;
+  color: var(--fg-dim);
+  transition: color var(--dur) var(--ease);
+}
+.nav button[aria-selected="true"] { color: var(--fg); }
+.nav__kanji { font: var(--t-kanji); display: block; margin-bottom: 7px; }
+.nav__label { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
+
+/* ─────────────────────────  футер: мікросезон 七十二候  ───────────────────────── */
+
+.kou { margin-top: var(--stack-lg); text-align: center; color: var(--fg-dim); }
+.kou__kanji { font: var(--t-kanji); font-size: 14px; display: block; margin-bottom: 7px; opacity: .85; }
+.kou__name { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
+
+/* ─────────────────────────  тихі повідомлення  ───────────────────────── */
+
+.quiet { text-align: center; color: var(--fg-dim); font-size: 14px; padding: var(--stack-lg) 0; line-height: 1.8; }
+
+.toast {
+  position: fixed;
+  left: 50%; bottom: calc(104px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 8px);
+  background: var(--fg); color: var(--bg);
+  font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 11px 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  z-index: 10;
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* екран повернення 「おかえり」 */
+.okaeri { text-align: center; padding: 40px 0 var(--stack-lg); }
+.okaeri__kanji { font-family: var(--f-serif); font-size: 32px; font-weight: 300; display: block; margin-bottom: 18px; }
+.okaeri__text { color: var(--fg-dim); font-size: 14px; line-height: 1.85; }

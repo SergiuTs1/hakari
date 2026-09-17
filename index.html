@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>秤 hakari</title>
+<meta name="description" content="Тихий щоденник ваги та складу тіла.">
+
+<!-- iOS: повноекранний режим із домашнього екрана -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="秤">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14140F" media="(prefers-color-scheme: dark)">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<main class="app">
+
+<!-- ═══════════════════  今日  ═══════════════════ -->
+<section class="screen is-active" id="s-today">
+  <div class="head">
+    <h1 class="head__kanji">今日<span>today</span></h1>
+    <time class="head__date" id="today-date"></time>
+  </div>
+
+  <!-- екран повернення: показується лише після довгої паузи -->
+  <div class="okaeri" id="okaeri" hidden>
+    <span class="okaeri__kanji">おかえり</span>
+    <p class="okaeri__text" id="okaeri-text"></p>
+  </div>
+
+  <div class="enso-wrap" id="enso-wrap">
+    <svg class="enso" viewBox="0 0 160 160" aria-hidden="true">
+      <g transform="rotate(-90 80 80)">
+        <circle class="enso__track" cx="80" cy="80" r="66"
+                stroke-dasharray="364.9 414.7"></circle>
+        <circle class="enso__arc" id="enso-arc" cx="80" cy="80" r="66"
+                stroke-dasharray="0 414.7"></circle>
+      </g>
+    </svg>
+    <div class="figure">
+      <span class="figure__value" id="trend-value">—<span class="figure__unit">кг</span></span>
+      <span class="figure__label label">тренд</span>
+    </div>
+  </div>
+
+  <p class="delta" id="delta"></p>
+
+  <div class="entry">
+    <label class="label" for="weight">вага сьогодні</label>
+    <div class="entry__row">
+      <input class="entry__input" id="weight" type="text"
+             inputmode="decimal" autocomplete="off" enterkeyhint="done"
+             placeholder="00.0" aria-label="Вага сьогодні, кг">
+      <span class="entry__unit">кг</span>
+      <button class="entry__save" id="save" disabled>записати</button>
+    </div>
+
+    <div class="toggles">
+      <button class="toggle" id="t-protein" aria-pressed="false">
+        <span class="toggle__kanji">白</span>
+        <span class="toggle__label">білок</span>
+      </button>
+      <button class="toggle" id="t-trained" aria-pressed="false">
+        <span class="toggle__kanji">鍛</span>
+        <span class="toggle__label">тренування</span>
+      </button>
+    </div>
+  </div>
+
+  <footer class="kou">
+    <span class="kou__kanji" id="kou-kanji"></span>
+    <span class="kou__name" id="kou-name"></span>
+  </footer>
+</section>
+
+<!-- ═══════════════════  推移  ═══════════════════ -->
+<section class="screen" id="s-trend">
+  <div class="head">
+    <h1 class="head__kanji">推移<span>trend</span></h1>
+  </div>
+
+  <div class="ranges" id="ranges" role="tablist">
+    <button role="tab" data-range="30" aria-selected="true">30 днів</button>
+    <button role="tab" data-range="90" aria-selected="false">90 днів</button>
+    <button role="tab" data-range="0"  aria-selected="false">усе</button>
+  </div>
+
+  <svg class="chart" id="chart" role="img" aria-label="Графік ваги"></svg>
+
+  <hr class="rule">
+
+  <div class="kv"><span class="label">початок</span><span class="kv__v" id="k-start">—</span></div>
+  <div class="kv"><span class="label">зараз, тренд</span><span class="kv__v" id="k-now">—</span></div>
+  <div class="kv"><span class="label">разом</span><span class="kv__v" id="k-total">—</span></div>
+  <div class="kv"><span class="label">темп</span><span class="kv__v" id="k-rate">—</span></div>
+  <div class="kv"><span class="label">до цілі</span><span class="kv__v" id="k-togo">—</span></div>
+
+  <p class="quiet" id="rate-note" hidden></p>
+</section>
+
+<!-- ═══════════════════  記録  ═══════════════════ -->
+<section class="screen" id="s-log">
+  <div class="head">
+    <h1 class="head__kanji">記録<span>record</span></h1>
+  </div>
+
+  <span class="label">останні 30 днів</span>
+  <div class="grid" id="grid"></div>
+  <div class="kv kv--bare">
+    <span class="label">консистентність</span>
+    <span class="kv__v" id="k-consist">—</span>
+  </div>
+
+  <hr class="rule">
+
+  <span class="label">профіль</span>
+  <div class="field">
+    <label for="p-height">зріст, см</label>
+    <input id="p-height" type="text" inputmode="numeric" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="p-goal">ціль, кг</label>
+    <input id="p-goal" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
+  </div>
+
+  <hr class="rule">
+
+  <span class="label">бекап</span>
+  <button class="act" id="export">
+    зберегти копію
+    <small id="backup-age">ніколи не зберігалась</small>
+  </button>
+  <button class="act" id="import-btn">
+    відновити з файлу
+    <small>дані зіллються, нічого не зникне</small>
+  </button>
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+
+  <p class="quiet">
+    Дані живуть лише на цьому пристрої.<br>
+    Зберігай копію щонеділі — це єдина слабка точка.
+  </p>
+
+  <hr class="rule">
+
+  <!-- архів іде останнім: він довгий, і до нього звертаються найрідше -->
+  <span class="label">записи</span>
+  <ul class="log" id="log"></ul>
+  <p class="quiet" id="log-empty" hidden>записів ще немає</p>
+</section>
+
+</main>
+
+<!-- ═══════════════════  навігація  ═══════════════════ -->
+<nav class="nav" id="nav" role="tablist">
+  <button role="tab" data-screen="today" aria-selected="true">
+    <span class="nav__kanji">今日</span><span class="nav__label">сьогодні</span>
+  </button>
+  <button role="tab" data-screen="trend" aria-selected="false">
+    <span class="nav__kanji">推移</span><span class="nav__label">тренд</span>
+  </button>
+  <button role="tab" data-screen="log" aria-selected="false">
+    <span class="nav__kanji">記録</span><span class="nav__label">записи</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

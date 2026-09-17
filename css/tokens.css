@@ -1,0 +1,79 @@
+/* 秤 hakari — design tokens
+   Палітра васі-паперу й туші. Усі кольори живуть тільки тут. */
+
+:root {
+  /* — поверхні — */
+  --kinari:   #F4F1EA;  /* 生成り  небілений папір */
+  --kinari-2: #EBE7DD;  /* тонована поверхня */
+
+  /* — туш — */
+  --sumi:     #1A1A18;  /* 墨    основний текст */
+  --usuzumi:  #6F6C65;  /* 薄墨  другорядний текст */
+  --hairline: rgba(26, 26, 24, .13);
+
+  /* — смисл — */
+  --ai:       #2C4A63;  /* 藍  індиго    → суха маса */
+  --shu:      #C1440E;  /* 朱  вермільйон → жирова маса, увага */
+  --koke:     #6B705C;  /* 苔  мох        → рух у бік цілі */
+  --kin:      #B08D57;  /* 金  золото     → кінцугі, пропуски */
+
+  /* — семантика — */
+  --bg:        var(--kinari);
+  --surface:   var(--kinari-2);
+  --fg:        var(--sumi);
+  --fg-dim:    var(--usuzumi);
+  --accent:    var(--shu);
+  --ink-line:  var(--sumi);
+
+  /* — простір (間) — */
+  --gutter: 28px;
+  --stack:  22px;
+  --stack-lg: 44px;
+  --measure: 420px;
+
+  /* — типографіка — */
+  /* Тільки системні шрифти: нуль мережевих запитів, справжній офлайн.
+     На iPhone це San Francisco + Hiragino Mincho ProN — рідний японський
+     мінчо, уже вбудований у систему. Краще за будь-який веб-шрифт. */
+  --f-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --f-serif: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', Georgia, serif;
+
+  --t-numeral: 300 44px/1 var(--f-sans);
+  --t-numeral-sm: 300 30px/1 var(--f-sans);
+  --t-body:   400 15px/1.65 var(--f-sans);
+  --t-kanji:  300 17px/1 var(--f-serif);
+
+  /* підписи: завжди caps + розрідження */
+  --t-label:  400 10px/1 var(--f-sans);
+  --ls-label: .18em;
+
+  --dur: .35s;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kinari:   #14140F;  /* 墨黒 */
+    --kinari-2: #1D1D17;
+    --sumi:     #E6E2D7;
+    --usuzumi:  #8A867C;
+    --hairline: rgba(230, 226, 215, .14);
+
+    --ai:   #6C93B4;
+    --shu:  #D96A3A;
+    --koke: #9AA187;
+    --kin:  #C9A971;
+  }
+}
+
+:root[data-theme="dark"] {
+  --kinari:   #14140F;
+  --kinari-2: #1D1D17;
+  --sumi:     #E6E2D7;
+  --usuzumi:  #8A867C;
+  --hairline: rgba(230, 226, 215, .14);
+  --ai:   #6C93B4;
+  --shu:  #D96A3A;
+  --koke: #9AA187;
+  --kin:  #C9A971;
+}
