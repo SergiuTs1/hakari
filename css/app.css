@@ -2,6 +2,11 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Атрибут hidden перебивається будь-яким display у нашому ж CSS
+   (напр. .field { display: flex }), і елемент лишається на екрані.
+   Страхуємось один раз тут, щоб не ловити це в кожному компоненті. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -94,6 +99,25 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .delta b { font-weight: 400; color: var(--koke); }
 .delta b.is-flat { color: var(--fg-dim); }
 .delta b.is-warn { color: var(--shu); }
+
+/* Відсоток жиру. Помітніший за дельту, бо це відповідь на головне
+   питання, але тихіший за тренд — щоб не було двох головних цифр. */
+.fat {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  text-align: center;
+}
+.fat b {
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  margin-right: 3px;
+}
+/* обмір давній — цифра гасне, але лишається на місці */
+.fat.is-stale b { color: var(--fg-dim); }
 
 /* ─────────────────────────  енсо 円相  ───────────────────────── */
 
@@ -238,6 +262,25 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   background: none; border: 0; outline: none; color: var(--fg);
   width: 120px; padding: 0; border-radius: 0; -webkit-appearance: none;
 }
+
+/* вибір із двох — той самий контур, що в .toggle на 今日 */
+.pick { display: flex; gap: 8px; }
+.pick button {
+  font-size: 14px;
+  color: var(--fg-dim);
+  padding: 5px 13px;
+  border: 1px solid var(--hairline);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.pick button[aria-checked="true"] { border-color: var(--ink-line); color: var(--fg); }
+
+.hint {
+  margin: 18px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--fg-dim);
+}
+.hint.is-kin { color: var(--kin); }
 
 /* ─────────────────────────  нижня навігація  ───────────────────────── */
 

@@ -109,6 +109,51 @@ export function isTooFast(rate, weight) {
   return pct != null && pct > FAST_LOSS_PCT;
 }
 
+/* ── склад тіла: US Navy ──────────────────────────────────────
+ *
+ * Абсолютна похибка методу — близько ±3–4% жиру: щоб знати точну
+ * цифру, потрібен DEXA. Але похибка стабільна й зсуває результат
+ * завжди в один бік, тому це власна лінійка: порівнювати себе з
+ * собою минулого місяця вона дозволяє, з чужими числами — ні.
+ *
+ * Найчутливіше місце — не талія сама по собі, а різниця
+ * (талія − шия): один сантиметр помилки в будь-якій з двох дає
+ * ~0.7% жиру. Тому шию треба мірити так само дисципліновано,
+ * як талію, і завжди в тій самій позі.
+ *
+ *   ч:  495 / (1.0324  − 0.19077·log₁₀(талія − шия)          + 0.15456·log₁₀(зріст)) − 450
+ *   ж:  495 / (1.29579 − 0.35004·log₁₀(талія + стегна − шия) + 0.22100·log₁₀(зріст)) − 450
+ */
+
+const NAVY = {
+  m: { c0: 1.0324,  c1: 0.19077, c2: 0.15456 },
+  f: { c0: 1.29579, c1: 0.35004, c2: 0.22100 },
+};
+
+/**
+ * Відсоток жиру за US Navy. Усі обміри в сантиметрах.
+ * Повертає null, якщо даних ще не вистачає — рахувати з null
+ * не можна, краще нічого не показати.
+ */
+export function bodyFatPct({ sex, height, neck, waist, hips }) {
+  const k = NAVY[sex];
+  if (!k || !height || !neck || !waist) return null;
+  if (sex === 'f' && !hips) return null;
+
+  const girth = sex === 'f' ? waist + hips - neck : waist - neck;
+  if (girth <= 0) return null;                    // шия більша за талію — описка у вводі
+
+  const denom = k.c0 - k.c1 * Math.log10(girth) + k.c2 * Math.log10(height);
+  if (denom <= 0) return null;
+
+  const pct = 495 / denom - 450;
+  return pct > 2 && pct < 70 ? pct : null;        // за межами — теж описка
+}
+
+/* Після скількох днів цифра вважається підстарілою й гасне.
+   Десять, а не сім: пропущена неділя — не причина щось міняти. */
+export const MEASURE_STALE_DAYS = 10;
+
 /* ── консистентність (замість стріків) ────────────────────────
  *
  * Свідомо НЕ рахуємо серію поспіль. Стрік, який обнуляється, —
@@ -145,6 +190,10 @@ export function daysSinceLast(entries) {
 
 export function fmtKg(v, digits = 1) {
   return v == null || Number.isNaN(v) ? '—' : v.toFixed(digits);
+}
+
+export function fmtPct(v, digits = 1) {
+  return v == null || Number.isNaN(v) ? '—' : `${v.toFixed(digits)}%`;
 }
 
 export function fmtSigned(v, digits = 2) {

@@ -2,9 +2,10 @@
 
 import * as db from './db.js';
 import {
-  todayISO, fmtShort, fmtKg, fmtSigned, daysBetween,
+  todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween,
   buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast,
-  lossPctPerWeek, isTooFast, CONSISTENCY_GOAL, FAST_LOSS_PCT,
+  lossPctPerWeek, isTooFast, bodyFatPct,
+  CONSISTENCY_GOAL, FAST_LOSS_PCT, MEASURE_STALE_DAYS,
 } from './calc.js';
 import { renderChart, renderEnso } from './chart.js';
 import { currentKou } from './kou.js';
@@ -14,6 +15,7 @@ const $ = id => document.getElementById(id);
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
   entries: [],
+  weekly: [],
   profile: null,
   range: 30,
 };
@@ -28,6 +30,7 @@ async function init() {
 
   state.profile = await db.getProfile();
   state.entries = await db.daily.all();
+  state.weekly = await db.weekly.all();
 
   bindNav();
   bindEntry();
@@ -91,6 +94,23 @@ function renderToday() {
     const warn = last && isTooFast(rate, last.trend);
     const cls = warn ? 'is-warn' : Math.abs(rate) < 0.05 ? 'is-flat' : '';
     deltaEl.innerHTML = `<b class="${cls}">${fmtSigned(rate)}</b> кг за тиждень`;
+  }
+
+  /* ── відсоток жиру ──
+     Одна цифра, без кілограмів жирової й сухої маси: питання «скільки
+     в мене жиру» має одну відповідь, і вона тут.
+     Кольору навмисно не даємо — --shu читався б як тривога, а це
+     просто показник, не попередження. Немає даних — немає й рядка:
+     порожній стан на головному екрані працює як щоденний докір. */
+  const fatEl = $('fat');
+  const m = latestMeasured();
+  if (!m) {
+    fatEl.hidden = true;
+  } else {
+    fatEl.hidden = false;
+    $('fat-value').textContent = fmtPct(m.pct);
+    const stale = daysBetween(m.date, todayISO()) >= MEASURE_STALE_DAYS;
+    fatEl.className = stale ? 'fat is-stale' : 'fat';
   }
 
   /* 「おかえり」 — тихе повернення без докорів */
@@ -167,6 +187,40 @@ async function upsertToday(patch) {
   }
 }
 
+/* ═════════════════════════  склад тіла  ═════════════════════════ */
+
+/**
+ * Останній обмір, з якого формула дала число.
+ * Шукаємо з кінця, а не беремо просто найновіший запис: неповний
+ * сьогоднішній обмір не має гасити цифру. Шия тижнями стоїть на
+ * місці, і забути її — не причина втратити показник.
+ */
+function latestMeasured() {
+  const { sex, height } = state.profile;
+  for (let i = state.weekly.length - 1; i >= 0; i--) {
+    const rec = state.weekly[i];
+    const pct = bodyFatPct({ sex, height, neck: rec.neck, waist: rec.waist, hips: rec.hips });
+    if (pct != null) return { date: rec.date, pct };
+  }
+  return null;
+}
+
+/* Записи йдуть чергою, і попередній стан читається з бази, а не з
+   пам'яті. Інакше два швидкі збереження підряд (ввів шию, одразу
+   талію) читають однаково порожній запис і друге перетирає перше —
+   обмір зникає мовчки. */
+let weeklyQueue = Promise.resolve();
+
+function upsertWeekly(patch) {
+  weeklyQueue = weeklyQueue.then(async () => {
+    const iso = todayISO();
+    const prev = (await db.weekly.get(iso)) || { date: iso };
+    await db.weekly.put({ ...prev, ...patch, date: iso });
+    state.weekly = await db.weekly.all();
+  });
+  return weeklyQueue;
+}
+
 /* ═════════════════════════  推移  ═════════════════════════ */
 
 function bindTrend() {
@@ -237,6 +291,22 @@ function bindLog() {
   bindProfileField('p-height', 'height', v => (v >= 100 && v <= 250 ? v : null));
   bindProfileField('p-goal', 'goalWeight', v => (v >= 30 && v <= 300 ? v : null), true);
 
+  $('p-sex').addEventListener('click', async e => {
+    const btn = e.target.closest('button[data-sex]');
+    if (!btn) return;
+    const sex = btn.dataset.sex;
+    state.profile = { ...state.profile, sex };
+    await db.setProfile({ sex });
+    renderToday();
+    renderLog();
+  });
+
+  /* Обміри зберігаються так само, як профіль: по change, без кнопки.
+     Тижневий ввід і так рідкий — не додаємо до нього ще один тап. */
+  bindMeasure('m-neck', 'neck', 20, 70);
+  bindMeasure('m-waist', 'waist', 40, 200);
+  bindMeasure('m-hips', 'hips', 50, 200);
+
   $('export').addEventListener('click', doExport);
   $('import-btn').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', doImport);
@@ -257,6 +327,19 @@ function bindProfileField(id, key, validate, nullable = false) {
     state.profile = { ...state.profile, [key]: v };
     await db.setProfile({ [key]: v });
     renderTrend();
+    toast('збережено');
+  });
+}
+
+function bindMeasure(id, key, lo, hi) {
+  const inp = $(id);
+  inp.addEventListener('change', async () => {
+    const raw = inp.value.replace(',', '.').trim();
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v) || v < lo || v > hi) { renderLog(); return; }   // тихо відкочуємо
+    await upsertWeekly({ [key]: v });
+    renderToday();
+    renderLog();
     toast('збережено');
   });
 }
@@ -304,6 +387,36 @@ function renderLog() {
 
   $('p-height').value = state.profile.height ?? '';
   $('p-goal').value = state.profile.goalWeight ?? '';
+
+  for (const b of $('p-sex').children) {
+    b.setAttribute('aria-checked', String(b.dataset.sex === state.profile.sex));
+  }
+  $('f-hips').hidden = state.profile.sex !== 'f';   // жіноча формула потребує стегон
+
+  /* Поля показують лише сьогоднішній обмір. Підставляти минулотижневі
+     значення не можна: тоді забута шия тихо записалась би як щойно
+     зміряна. Коли обмір був — видно нижче. */
+  const today = state.weekly.find(r => r.date === todayISO()) || {};
+  $('m-neck').value  = today.neck  ?? '';
+  $('m-waist').value = today.waist ?? '';
+  $('m-hips').value  = today.hips  ?? '';
+
+  const m = latestMeasured();
+  $('k-measured').textContent = m ? fmtShort(m.date) : '—';
+  $('k-measured').className = 'kv__v' + (m ? '' : ' is-dim');
+
+  /* Поки зросту або статі немає — просимо їх, а не рахуємо з null.
+     Запит живе тут, а не на 今日: головний екран не місце для вимог. */
+  const need = $('measure-need');
+  const lacks = [
+    state.profile.height ? null : 'зріст',
+    state.profile.sex ? null : 'стать',
+  ].filter(Boolean);
+  need.hidden = lacks.length === 0;
+  need.textContent = lacks.length
+    ? `Щоб порахувати відсоток жиру, заповни ${lacks.join(' і ')} вище.`
+    : '';
+
   renderBackupAge();
 }
 
@@ -348,6 +461,7 @@ async function doImport(e) {
     const res = await db.importAll(JSON.parse(await file.text()));
     state.profile = await db.getProfile();
     state.entries = await db.daily.all();
+    state.weekly = await db.weekly.all();
     renderAll();
     toast(`відновлено ${res.daily}`);
   } catch (err) {

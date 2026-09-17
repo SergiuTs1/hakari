@@ -56,6 +56,10 @@
 
   <p class="delta" id="delta"></p>
 
+  <!-- відсоток жиру: оновлюється раз на тиждень, тому може бути
+       підстарілим — тоді просто гасне, без жодного докору -->
+  <p class="fat" id="fat" hidden><b id="fat-value"></b> жиру</p>
+
   <div class="entry">
     <label class="label" for="weight">вага сьогодні</label>
     <div class="entry__row">
@@ -133,6 +137,44 @@
     <label for="p-goal">ціль, кг</label>
     <input id="p-goal" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
   </div>
+  <!-- стать потрібна формулі Navy: у чоловіків і жінок різні коефіцієнти -->
+  <div class="field">
+    <span>стать</span>
+    <div class="pick" id="p-sex" role="radiogroup" aria-label="Стать">
+      <button role="radio" data-sex="m" aria-checked="false">чол.</button>
+      <button role="radio" data-sex="f" aria-checked="false">жін.</button>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <span class="label">обміри</span>
+  <div class="field">
+    <label for="m-neck">шия, см</label>
+    <input id="m-neck" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
+  </div>
+  <div class="field">
+    <label for="m-waist">талія, см</label>
+    <input id="m-waist" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
+  </div>
+  <div class="field" id="f-hips" hidden>
+    <label for="m-hips">стегна, см</label>
+    <input id="m-hips" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
+  </div>
+
+  <div class="kv kv--bare">
+    <span class="label">останній обмір</span>
+    <span class="kv__v" id="k-measured">—</span>
+  </div>
+
+  <!-- протокол вирішує все: похибка в сантиметр дає ~0.7% жиру,
+       і шия тут важить рівно стільки ж, скільки талія -->
+  <p class="hint">
+    Шию мірять під кадиком, талію — на рівні пупка на видиху, не втягуючи.
+    Найкраще зранку натще й того самого дня тижня.<br>
+    Стабільність тут важливіша за точність самого числа.
+  </p>
+  <p class="hint is-kin" id="measure-need" hidden></p>
 
   <hr class="rule">
 
