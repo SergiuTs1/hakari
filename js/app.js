@@ -13,6 +13,10 @@ import { photoTakenDate } from './exif.js';
 
 const $ = id => document.getElementById(id);
 
+/* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
+   щоб з телефону було видно, що саме зараз працює. */
+const VERSION = 13;
+
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
   entries: [],
@@ -43,6 +47,7 @@ async function init() {
   bindLog();
   bindPhotos();
 
+  $('version').textContent = `версія ${VERSION}`;
   $('today-date').textContent = fmtShort(todayISO());
   const kou = currentKou();
   $('kou-kanji').textContent = kou.kanji;

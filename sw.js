@@ -7,7 +7,7 @@
  * стару версію.
  */
 
-const CACHE = 'hakari-v12';
+const CACHE = 'hakari-v13';   // тримати в парі з VERSION у js/app.js
 
 /* На localhost кеш вимкнено. Інакше під час розробки правиш CSS, оновлюєш
    сторінку — і бачиш стару версію, поки не здогадаєшся почистити кеш руками. */
@@ -30,11 +30,16 @@ const SHELL = [
   './icons/icon-512.png',
 ];
 
+/* cache: 'reload' тут не косметика. Без нього addAll бере файли зі
+   звичайного HTTP-кешу браузера, а GitHub Pages віддає їх з
+   max-age=600 — тобто новий кеш міг мовчки заповнитись СТАРИМ вмістом
+   і залипнути так назавжди: номер кешу новий, файли старі, і жодне
+   перевстановлення це не лікує. Качаємо повз HTTP-кеш. */
 self.addEventListener('install', e => {
   if (DEV) { self.skipWaiting(); return; }
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(SHELL))
+      .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
