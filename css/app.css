@@ -40,9 +40,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .screen { display: none; animation: rise var(--dur) var(--ease); }
 .screen.is-active { display: block; }
 
+/* перехід між табами: спершу старий екран тихо гасне (fall), і лише
+   тоді з'являється новий (rise) — послідовно, не внахлест, щоб не
+   городити абсолютне позиціонування заради різної висоти екранів */
+.screen.is-leaving { display: block; animation: fall .15s var(--ease) forwards; }
+
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
+}
+@keyframes fall {
+  to { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

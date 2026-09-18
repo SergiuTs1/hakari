@@ -58,15 +58,48 @@ function renderAll() {
 
 /* ═════════════════════════  навігація  ═════════════════════════ */
 
+/* перехід, що зараз доганяє (fall ще не доіграв) — щоб швидкий
+   повторний тап не лишив по собі два одночасно "активні" екрани */
+let leaving = null;
+
 function bindNav() {
   $('nav').addEventListener('click', e => {
     const btn = e.target.closest('button[data-screen]');
-    if (!btn) return;
-    for (const b of $('nav').children) b.setAttribute('aria-selected', String(b === btn));
-    for (const s of document.querySelectorAll('.screen')) s.classList.remove('is-active');
-    $('s-' + btn.dataset.screen).classList.add('is-active');
-    window.scrollTo(0, 0);
+    if (!btn || btn.getAttribute('aria-selected') === 'true') return;
+    switchScreen(btn);
   });
+}
+
+function switchScreen(btn) {
+  const next = $('s-' + btn.dataset.screen);
+  for (const b of $('nav').children) b.setAttribute('aria-selected', String(b === btn));
+
+  if (leaving) {
+    leaving.el.removeEventListener('animationend', leaving.onEnd);
+    leaving.el.classList.remove('is-active', 'is-leaving');
+    leaving = null;
+  }
+
+  const current = document.querySelector('.screen.is-active');
+  const reveal = () => {
+    if (current) current.classList.remove('is-active', 'is-leaving');
+    next.classList.add('is-active');
+    window.scrollTo(0, 0);
+  };
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!current || current === next || reduced) { reveal(); return; }
+
+  current.classList.remove('is-active');
+  current.classList.add('is-leaving');
+  const onEnd = e => {
+    if (e.target !== current) return;
+    current.removeEventListener('animationend', onEnd);
+    leaving = null;
+    reveal();
+  };
+  current.addEventListener('animationend', onEnd);
+  leaving = { el: current, onEnd };
 }
 
 /* ═════════════════════════  今日  ═════════════════════════ */
