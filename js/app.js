@@ -524,10 +524,24 @@ async function onPhotoFile(e) {
     await db.photos.add({ date: taken || todayISO(), blob });
     state.photos = await db.photos.all();
     renderPhotos();
-    toast('фото збережено');
+    if (taken) toast('фото збережено');
+    else toast(await debugNoExifToast(file), 6000);
   } catch (err) {
     toast('не вдалося обробити фото');
     console.error(err);
+  }
+}
+
+/* ТИМЧАСОВО: поки з'ясовуємо, чому EXIF-дата іноді не знаходиться на
+   реальних фото з iPhone. Показує тип файлу й перші байти сигнатури —
+   прибрати цей тост одразу, як тільки причина стане зрозумілою. */
+async function debugNoExifToast(file) {
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const hex = [...head].map(b => b.toString(16).padStart(2, '0')).join(' ');
+    return `фото збережено — EXIF не знайдено (${file.type || '?'}, ${hex})`;
+  } catch {
+    return 'фото збережено — EXIF не знайдено';
   }
 }
 
@@ -704,12 +718,12 @@ async function doImport(e) {
 /* ═════════════════════════  дрібниці  ═════════════════════════ */
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms = 1900) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('is-on'), 1900);
+  toastTimer = setTimeout(() => t.classList.remove('is-on'), ms);
 }
 
 function plural(n, one, few, many) {

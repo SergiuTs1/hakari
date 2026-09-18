@@ -389,6 +389,9 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   background: var(--fg); color: var(--bg);
   font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase;
   padding: 11px 20px;
+  max-width: calc(100vw - 40px);
+  white-space: normal;
+  text-align: center;
   opacity: 0; pointer-events: none;
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
   z-index: 10;
