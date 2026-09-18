@@ -677,10 +677,31 @@ function plural(n, one, few, many) {
   return many;
 }
 
+/* iOS у режимі "з домашнього екрана" ненадійно сам перевіряє, чи зʼявився
+   новий sw.js — навіть повне перезавантаження застосунку не завжди це
+   запускає. Тому явно просимо перевірку при кожному відкритті й
+   поверненні з фону, а щойно нова версія візьме контроль — перезавантажуємо
+   сторінку самі, без ручного видалення іконки. */
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') return;     // з file:// SW не реєструється
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW:', err));
+
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      reg.update();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+    } catch (err) {
+      console.warn('SW:', err);
+    }
+  });
+
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return;
+    reloaded = true;
+    location.reload();
   });
 }
