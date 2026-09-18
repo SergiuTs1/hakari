@@ -205,6 +205,25 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .toggle__label { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
 .toggle[aria-pressed="true"] { border-color: var(--ink-line); color: var(--fg); }
 
+/* Підсумок за тиждень. Ті самі 白/鍛, що в журналі, тільки поруч із
+   самими перемикачами — там, де дію й роблять. Тихіший за кнопки:
+   це відповідь, а не місце для тапу. */
+.tally {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 2px 0;
+}
+.tally__marks { display: flex; gap: 20px; }
+.tally__cell { font: var(--t-kanji); font-size: 13px; color: var(--fg-dim); }
+.tally__cell b {
+  font: 400 15px/1 var(--f-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  margin-left: 7px;
+}
+
 /* ─────────────────────────  графік  ───────────────────────── */
 
 .chart { width: 100%; display: block; overflow: visible; }

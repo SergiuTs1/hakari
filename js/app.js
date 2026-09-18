@@ -3,7 +3,7 @@
 import * as db from './db.js';
 import {
   todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween,
-  buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast,
+  buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast, marksTally,
   lossPctPerWeek, isTooFast, bodyFatPct,
   CONSISTENCY_GOAL, FAST_LOSS_PCT, MEASURE_STALE_DAYS,
 } from './calc.js';
@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 13;
+const VERSION = 14;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -176,6 +176,24 @@ function renderToday() {
   $('t-protein').setAttribute('aria-pressed', String(!!(rec && rec.protein)));
   $('t-trained').setAttribute('aria-pressed', String(!!(rec && rec.trained)));
   validateEntry();
+  renderTally();
+}
+
+/* ── підсумок перемикачів за тиждень ──
+   Досі 白 і 鍛 писались у базу й нічого не повертали; це віддача за
+   них — рівно те, що натиснуто, без цілі й без знаменника. Порожнє
+   ховаємо цілком, а нуль в одному з двох — разом із його значком:
+   «鍛 0» на головному екрані читається як докір, а не як число. */
+function renderTally() {
+  const t = marksTally(state.entries);
+  const row = $('tally');
+  row.hidden = !t.protein && !t.trained;
+  if (row.hidden) return;
+
+  for (const [id, n] of [['tally-protein', t.protein], ['tally-trained', t.trained]]) {
+    $(id).hidden = !n;
+    $(id).querySelector('b').textContent = n;
+  }
 }
 
 function bindEntry() {
@@ -193,6 +211,9 @@ function bindEntry() {
       const next = btn.getAttribute('aria-pressed') !== 'true';
       btn.setAttribute('aria-pressed', String(next));
       await upsertToday({ [key]: next });
+      /* перемальовуємо тільки підсумок: renderToday() тут перезаписав би
+         поле ваги просто під пальцем, поки цифру ще набирають */
+      renderTally();
     });
   }
 }

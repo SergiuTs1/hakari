@@ -180,6 +180,27 @@ export function recentMap(entries, days = 30, endISO = todayISO()) {
   return out;
 }
 
+/* ── тижневий підсумок перемикачів ────────────────────────────
+ *
+ * 白 і 鍛 досі тільки писались у базу й виринали хіба що значками в
+ * журналі. Дія, за яку нічого не повертається, з часом перестає
+ * здаватись вартою тапу, — тому рахуємо, скільки разів натиснуто.
+ *
+ * Знаменника тут навмисно немає: «5 з 7» читається як недобір, а
+ * недобирати нічого — норми на тиждень не існує.
+ */
+
+export function marksTally(entries, days = 7, endISO = todayISO()) {
+  const start = addDays(endISO, -(days - 1));
+  let protein = 0, trained = 0;
+  for (const e of entries) {
+    if (e.date < start || e.date > endISO) continue;
+    if (e.protein) protein++;
+    if (e.trained) trained++;
+  }
+  return { protein, trained, days };
+}
+
 /** Скільки днів минуло від останнього запису. null — записів ще немає. */
 export function daysSinceLast(entries) {
   if (!entries.length) return null;

@@ -80,6 +80,18 @@
         <span class="toggle__label">тренування</span>
       </button>
     </div>
+
+    <!-- Підсумок перемикачів за тиждень: єдина віддача за 白 і 鍛.
+         Ні цілі, ні знаменника — «5 з 7» читалось би як недобір.
+         Чого не було, того й не показуємо: нуль на головному екрані
+         працює як докір, а не як факт. -->
+    <p class="tally" id="tally" hidden>
+      <span class="label">за тиждень</span>
+      <span class="tally__marks">
+        <span class="tally__cell" id="tally-protein">白<b></b></span>
+        <span class="tally__cell" id="tally-trained">鍛<b></b></span>
+      </span>
+    </p>
   </div>
 
   <footer class="kou">
