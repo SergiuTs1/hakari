@@ -7,7 +7,7 @@
  * стару версію.
  */
 
-const CACHE = 'hakari-v9';
+const CACHE = 'hakari-v10';
 
 /* На localhost кеш вимкнено. Інакше під час розробки правиш CSS, оновлюєш
    сторінку — і бачиш стару версію, поки не здогадаєшся почистити кеш руками. */
@@ -24,6 +24,7 @@ const SHELL = [
   './js/calc.js',
   './js/chart.js',
   './js/kou.js',
+  './js/exif.js',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

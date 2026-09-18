@@ -9,6 +9,7 @@ import {
 } from './calc.js';
 import { renderChart, renderEnso } from './chart.js';
 import { currentKou } from './kou.js';
+import { photoTakenDate } from './exif.js';
 
 const $ = id => document.getElementById(id);
 
@@ -517,8 +518,10 @@ async function onPhotoFile(e) {
   e.target.value = '';
   if (!file) return;
   try {
+    /* дата зі знімка (EXIF), якщо є — інакше сьогодні, як і раніше */
+    const taken = await photoTakenDate(file);
     const blob = await resizeImage(file, PHOTO_MAX_DIM, PHOTO_QUALITY);
-    await db.photos.add({ date: todayISO(), blob });
+    await db.photos.add({ date: taken || todayISO(), blob });
     state.photos = await db.photos.all();
     renderPhotos();
     toast('фото збережено');
