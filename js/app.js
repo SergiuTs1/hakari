@@ -428,7 +428,10 @@ function renderLog() {
 
 /* ═════════════════════════  фото прогресу  ═════════════════════════
  *
- * Одне фото на день, як і обміри: тижневий ритуал, не щоденний ввід.
+ * Дата тут — не ключ, а просто поле: на відміну від ваги чи обмірів,
+ * фото не одне на день. Ключ — окремий id (автоінкремент у db.js),
+ * інакше друге фото того самого дня мовчки перетирало б перше.
+ *
  * Перед збереженням стискаємо до розумного розміру — інакше через
  * рік бекап важить десятки мегабайтів заради пікселів, яких телефон
  * і не показує. Blob лежить в IndexedDB напряму, без base64 —
@@ -438,10 +441,10 @@ function renderLog() {
 const PHOTO_MAX_DIM = 1280;
 const PHOTO_QUALITY = 0.82;
 
-/* URL-и для <img src>, по одному на дату; ревокуються, коли фото
+/* URL-и для <img src>, по одному на id; ревокуються, коли фото
    зникає з вибірки — інакше кожен перерендер зʼїдає ще памʼяті. */
 const photoURLs = new Map();
-let viewedPhotoDate = null;
+let viewedPhotoId = null;
 
 function bindPhotos() {
   $('photo-add').addEventListener('click', () => $('photo-file').click());
@@ -451,13 +454,14 @@ function bindPhotos() {
   $('photo-grid').addEventListener('click', e => {
     const tile = e.target.closest('.photo-tile');
     if (!tile) return;
-    if (state.compareMode) pickForCompare(tile.dataset.date);
-    else openPhoto(tile.dataset.date);
+    const id = Number(tile.dataset.id);
+    if (state.compareMode) pickForCompare(id);
+    else openPhoto(id);
   });
 
   $('photo-view-close').addEventListener('click', () => $('photo-view').close());
   $('photo-view-del').addEventListener('click', deleteViewedPhoto);
-  $('photo-view').addEventListener('close', () => { viewedPhotoDate = null; });
+  $('photo-view').addEventListener('close', () => { viewedPhotoId = null; });
 
   $('photo-compare-close').addEventListener('click', () => $('photo-compare').close());
   $('photo-compare').addEventListener('close', () => {
@@ -478,7 +482,7 @@ async function onPhotoFile(e) {
   if (!file) return;
   try {
     const blob = await resizeImage(file, PHOTO_MAX_DIM, PHOTO_QUALITY);
-    await db.photos.put({ date: todayISO(), blob });
+    await db.photos.add({ date: todayISO(), blob });
     state.photos = await db.photos.all();
     renderPhotos();
     toast('фото збережено');
@@ -518,18 +522,18 @@ function renderPhotos() {
   const seen = new Set();
 
   for (const p of recent) {
-    seen.add(p.date);
-    let url = photoURLs.get(p.date);
+    seen.add(p.id);
+    let url = photoURLs.get(p.id);
     if (!url) {
       url = URL.createObjectURL(p.blob);
-      photoURLs.set(p.date, url);
+      photoURLs.set(p.id, url);
     }
 
     const tile = document.createElement('button');
     tile.className = 'photo-tile';
-    tile.dataset.date = p.date;
+    tile.dataset.id = p.id;
     tile.setAttribute('aria-label', fmtShort(p.date));
-    if (state.comparePick.includes(p.date)) tile.classList.add('is-picked');
+    if (state.comparePick.includes(p.id)) tile.classList.add('is-picked');
 
     const img = document.createElement('img');
     img.src = url;
@@ -540,21 +544,26 @@ function renderPhotos() {
   }
 
   /* фото, яких більше немає у вибірці (видалені), звільняють URL */
-  for (const [date, url] of photoURLs) {
-    if (!seen.has(date)) { URL.revokeObjectURL(url); photoURLs.delete(date); }
+  for (const [id, url] of photoURLs) {
+    if (!seen.has(id)) { URL.revokeObjectURL(url); photoURLs.delete(id); }
   }
 }
 
-function openPhoto(date) {
-  viewedPhotoDate = date;
-  $('photo-view-img').src = photoURLs.get(date);
-  $('photo-view-date').textContent = fmtShort(date);
+function findPhoto(id) {
+  return state.photos.find(p => p.id === id) || null;
+}
+
+function openPhoto(id) {
+  viewedPhotoId = id;
+  const p = findPhoto(id);
+  $('photo-view-img').src = photoURLs.get(id);
+  $('photo-view-date').textContent = p ? fmtShort(p.date) : '';
   $('photo-view').showModal();
 }
 
 async function deleteViewedPhoto() {
-  if (!viewedPhotoDate) return;
-  await db.photos.del(viewedPhotoDate);
+  if (viewedPhotoId == null) return;
+  await db.photos.del(viewedPhotoId);
   state.photos = await db.photos.all();
   $('photo-view').close();
   renderPhotos();
@@ -569,11 +578,11 @@ function togglePhotoCompare() {
   markPickedTiles();
 }
 
-function pickForCompare(date) {
-  const i = state.comparePick.indexOf(date);
+function pickForCompare(id) {
+  const i = state.comparePick.indexOf(id);
   if (i >= 0) state.comparePick.splice(i, 1);
   else {
-    state.comparePick.push(date);
+    state.comparePick.push(id);
     if (state.comparePick.length > 2) state.comparePick.shift();
   }
   markPickedTiles();
@@ -582,18 +591,18 @@ function pickForCompare(date) {
 
 function markPickedTiles() {
   for (const tile of $('photo-grid').children) {
-    tile.classList.toggle('is-picked', state.comparePick.includes(tile.dataset.date));
+    tile.classList.toggle('is-picked', state.comparePick.includes(Number(tile.dataset.id)));
   }
 }
 
 function showCompare() {
-  const [a, b] = state.comparePick.slice().sort();   // хронологічно: раніше зліва
-  $('compare-a-img').src = photoURLs.get(a);
-  $('compare-b-img').src = photoURLs.get(b);
-  $('compare-a-date').textContent = fmtShort(a);
-  $('compare-b-date').textContent = fmtShort(b);
+  const [a, b] = state.comparePick.map(findPhoto).sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+  $('compare-a-img').src = photoURLs.get(a.id);
+  $('compare-b-img').src = photoURLs.get(b.id);
+  $('compare-a-date').textContent = fmtShort(a.date);
+  $('compare-b-date').textContent = fmtShort(b.date);
 
-  const days = daysBetween(a, b);
+  const days = daysBetween(a.date, b.date);
   $('compare-gap').textContent = days > 0 ? `${days} ${plural(days, 'день', 'дні', 'днів')} між фото` : '';
 
   $('photo-compare').showModal();

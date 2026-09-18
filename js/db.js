@@ -3,14 +3,18 @@
  * Сховища:
  *   daily  { date:'YYYY-MM-DD', weight, protein, trained, note }
  *   weekly { date:'YYYY-MM-DD', neck, waist, hips, ... }   ← наповниться у фазі 3
- *   photos { date:'YYYY-MM-DD', blob }                     ← фаза 5, фото прогресу
+ *   photos { id (авто), date:'YYYY-MM-DD', blob }          ← фаза 5, фото прогресу
  *   meta   { k, v }                                        ← профіль, налаштування, бекап
  *
  * Сховище weekly створюємо вже зараз, щоб фаза 3 не тягнула міграцію схеми.
+ *
+ * photos свідомо не ключується датою: на відміну від ваги й обмірів,
+ * фото не одне на день, тому ключ — id, а дата лишається звичайним
+ * полем.
  */
 
 const DB_NAME = 'hakari';
-const DB_VER = 2;
+const DB_VER = 3;
 
 let _db = null;
 
@@ -18,12 +22,35 @@ function open() {
   if (_db) return Promise.resolve(_db);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
       if (!db.objectStoreNames.contains('daily'))  db.createObjectStore('daily',  { keyPath: 'date' });
       if (!db.objectStoreNames.contains('weekly')) db.createObjectStore('weekly', { keyPath: 'date' });
       if (!db.objectStoreNames.contains('meta'))   db.createObjectStore('meta',   { keyPath: 'k' });
-      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'date' });
+
+      /* v2 завела photos з ключем 'date' (одне фото на день) — виявилось,
+         що це неправильна модель: друге фото того самого дня мовчки
+         перетирало перше. v3 переносить наявні фото на автоінкремент id,
+         не втрачаючи те, що вже збережено. */
+      if (event.oldVersion < 3) {
+        const hadOld = db.objectStoreNames.contains('photos');
+        const old = hadOld ? req.transaction.objectStore('photos') : null;
+        const carry = [];
+        const rebuild = () => {
+          if (hadOld) db.deleteObjectStore('photos');
+          const next = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+          for (const rec of carry) next.add({ date: rec.date, blob: rec.blob });
+        };
+        if (old) {
+          old.openCursor().onsuccess = e => {
+            const cursor = e.target.result;
+            if (cursor) { carry.push(cursor.value); cursor.continue(); }
+            else rebuild();
+          };
+        } else {
+          rebuild();
+        }
+      }
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
     req.onerror = () => reject(req.error);
@@ -60,14 +87,15 @@ export const weekly = {
 };
 
 /* ── фото прогресу ────────────────────────────────────────────
- * Одне фото на дату — так само, як обміри: новий знімок того самого
- * дня перекриває попередній, а не додається другим рядом. */
+ * На відміну від обмірів, фото не одне на дату: ключ — id, а не
+ * дата, тому кілька знімків того самого дня співіснують, а не
+ * перекривають один одного. */
 
 export const photos = {
-  put: rec  => tx('photos', 'readwrite', s => s.put(rec)),
-  get: date => tx('photos', 'readonly',  s => s.get(date)),
-  del: date => tx('photos', 'readwrite', s => s.delete(date)),
-  all: ()   => tx('photos', 'readonly',  s => s.getAll()).then(r => r.sort(byDate)),
+  /** {date, blob} → id присвоюється автоматично. */
+  add: rec => tx('photos', 'readwrite', s => s.add(rec)),
+  del: id  => tx('photos', 'readwrite', s => s.delete(id)),
+  all: ()  => tx('photos', 'readonly',  s => s.getAll()).then(r => r.sort(byDate)),
 };
 
 /* ── метадані ─────────────────────────────────────────────── */
@@ -171,9 +199,14 @@ export async function importAll(payload) {
 
   for (const rec of d) if (rec && rec.date) await daily.put(rec);
   for (const rec of w) if (rec && rec.date) await weekly.put(rec);
+  /* Кожне фото з бекапу додається новим записом (свій id), а не
+     перекриває існуюче за датою — на одну дату їх може бути кілька.
+     Наслідок: повторний імпорт того самого файлу задвоїть фото,
+     на відміну від ваги й обмірів. Для разового відновлення це не
+     проблема, для звички імпортувати вдруге — варто памʼятати. */
   for (const rec of p) {
     if (!rec || !rec.date || !rec.data) continue;
-    await photos.put({ date: rec.date, blob: base64ToBlob(rec.data, rec.type) });
+    await photos.add({ date: rec.date, blob: base64ToBlob(rec.data, rec.type) });
   }
   if (payload.profile) await setProfile(payload.profile);
 
