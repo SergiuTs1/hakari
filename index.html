@@ -243,17 +243,18 @@
   </div>
 </dialog>
 
-<!-- порівняння двох фото: два тапи в галереї в режимі "порівняти" -->
+<!-- порівняння двох фото: два тапи в галереї в режимі "порівняти",
+     перехід повзунком — одне вікно замість двох поруч -->
 <dialog class="compare" id="photo-compare">
-  <div class="compare__pair">
-    <figure>
-      <img id="compare-a-img" alt="">
-      <figcaption class="label" id="compare-a-date"></figcaption>
-    </figure>
-    <figure>
-      <img id="compare-b-img" alt="">
-      <figcaption class="label" id="compare-b-date"></figcaption>
-    </figure>
+  <div class="compare__stack">
+    <img class="compare__img" id="compare-a-img" alt="">
+    <img class="compare__img" id="compare-b-img" alt="">
+  </div>
+  <input class="compare__slider" id="compare-slider" type="range"
+         min="0" max="100" value="0" aria-label="Перехід між фото">
+  <div class="compare__dates">
+    <span class="label" id="compare-a-date"></span>
+    <span class="label" id="compare-b-date"></span>
   </div>
   <p class="quiet" id="compare-gap"></p>
   <button class="act" id="photo-compare-close">закрити</button>

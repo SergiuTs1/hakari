@@ -468,6 +468,9 @@ function bindPhotos() {
     state.comparePick = [];
     markPickedTiles();
   });
+  $('compare-slider').addEventListener('input', e => {
+    $('compare-b-img').style.opacity = Number(e.target.value) / 100;
+  });
 
   /* тап поза фото — теж закриття; для <dialog> це саме клік по самому
      елементу, а не по вмісту всередині */
@@ -601,6 +604,9 @@ function showCompare() {
   $('compare-b-img').src = photoURLs.get(b.id);
   $('compare-a-date').textContent = fmtShort(a.date);
   $('compare-b-date').textContent = fmtShort(b.date);
+
+  $('compare-slider').value = 0;
+  $('compare-b-img').style.opacity = 0;
 
   const days = daysBetween(a.date, b.date);
   $('compare-gap').textContent = days > 0 ? `${days} ${plural(days, 'день', 'дні', 'днів')} між фото` : '';

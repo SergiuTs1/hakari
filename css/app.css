@@ -327,10 +327,20 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 #photo-view-del { color: var(--shu); }
 
 .compare { width: min(94vw, 460px); background: var(--bg); padding: var(--gutter); }
-.compare__pair { display: flex; gap: 10px; }
-.compare__pair figure { flex: 1; margin: 0; }
-.compare__pair img { width: 100%; display: block; }
-.compare__pair figcaption { text-align: center; margin-top: 8px; }
+
+/* один кадр замість двох поруч: друге фото лежить зверху першого,
+   повзунок керує його непрозорістю — перехід, а не зіставлення */
+.compare__stack {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--surface);
+}
+.compare__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+#compare-b-img { opacity: 0; }
+
+.compare__slider { width: 100%; margin-top: 14px; accent-color: var(--accent); }
+.compare__dates { display: flex; justify-content: space-between; margin-top: 6px; }
 
 /* ─────────────────────────  нижня навігація  ───────────────────────── */
 
