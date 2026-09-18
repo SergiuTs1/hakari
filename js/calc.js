@@ -32,7 +32,7 @@ const MONTHS = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'л�
 
 export function fmtShort(iso) {
   const d = fromISO(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /* ── згладжений тренд ─────────────────────────────────────────
