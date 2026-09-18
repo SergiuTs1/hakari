@@ -16,8 +16,11 @@ const $ = id => document.getElementById(id);
 const state = {
   entries: [],
   weekly: [],
+  photos: [],
   profile: null,
   range: 30,
+  compareMode: false,
+  comparePick: [],
 };
 
 /* ═════════════════════════  запуск  ═════════════════════════ */
@@ -31,11 +34,13 @@ async function init() {
   state.profile = await db.getProfile();
   state.entries = await db.daily.all();
   state.weekly = await db.weekly.all();
+  state.photos = await db.photos.all();
 
   bindNav();
   bindEntry();
   bindTrend();
   bindLog();
+  bindPhotos();
 
   $('today-date').textContent = fmtShort(todayISO());
   const kou = currentKou();
@@ -417,7 +422,181 @@ function renderLog() {
     ? `Щоб порахувати відсоток жиру, заповни ${lacks.join(' і ')} вище.`
     : '';
 
+  renderPhotos();
   renderBackupAge();
+}
+
+/* ═════════════════════════  фото прогресу  ═════════════════════════
+ *
+ * Одне фото на день, як і обміри: тижневий ритуал, не щоденний ввід.
+ * Перед збереженням стискаємо до розумного розміру — інакше через
+ * рік бекап важить десятки мегабайтів заради пікселів, яких телефон
+ * і не показує. Blob лежить в IndexedDB напряму, без base64 —
+ * той рядок з'являється тільки на експорті, у db.js.
+ */
+
+const PHOTO_MAX_DIM = 1280;
+const PHOTO_QUALITY = 0.82;
+
+/* URL-и для <img src>, по одному на дату; ревокуються, коли фото
+   зникає з вибірки — інакше кожен перерендер зʼїдає ще памʼяті. */
+const photoURLs = new Map();
+let viewedPhotoDate = null;
+
+function bindPhotos() {
+  $('photo-add').addEventListener('click', () => $('photo-file').click());
+  $('photo-file').addEventListener('change', onPhotoFile);
+  $('photo-compare-toggle').addEventListener('click', togglePhotoCompare);
+
+  $('photo-grid').addEventListener('click', e => {
+    const tile = e.target.closest('.photo-tile');
+    if (!tile) return;
+    if (state.compareMode) pickForCompare(tile.dataset.date);
+    else openPhoto(tile.dataset.date);
+  });
+
+  $('photo-view-close').addEventListener('click', () => $('photo-view').close());
+  $('photo-view-del').addEventListener('click', deleteViewedPhoto);
+  $('photo-view').addEventListener('close', () => { viewedPhotoDate = null; });
+
+  $('photo-compare-close').addEventListener('click', () => $('photo-compare').close());
+  $('photo-compare').addEventListener('close', () => {
+    state.comparePick = [];
+    markPickedTiles();
+  });
+
+  /* тап поза фото — теж закриття; для <dialog> це саме клік по самому
+     елементу, а не по вмісту всередині */
+  for (const dlg of [$('photo-view'), $('photo-compare')]) {
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  }
+}
+
+async function onPhotoFile(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const blob = await resizeImage(file, PHOTO_MAX_DIM, PHOTO_QUALITY);
+    await db.photos.put({ date: todayISO(), blob });
+    state.photos = await db.photos.all();
+    renderPhotos();
+    toast('фото збережено');
+  } catch (err) {
+    toast('не вдалося обробити фото');
+    console.error(err);
+  }
+}
+
+/** Зменшує зображення до maxDim по довшій стороні й пакує в JPEG. */
+function resizeImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('фото не читається')); };
+    img.src = url;
+  });
+}
+
+function renderPhotos() {
+  const grid = $('photo-grid');
+  grid.textContent = '';
+  $('photo-empty').hidden = state.photos.length > 0;
+
+  const recent = state.photos.slice().reverse();   // найновіше зверху
+  const seen = new Set();
+
+  for (const p of recent) {
+    seen.add(p.date);
+    let url = photoURLs.get(p.date);
+    if (!url) {
+      url = URL.createObjectURL(p.blob);
+      photoURLs.set(p.date, url);
+    }
+
+    const tile = document.createElement('button');
+    tile.className = 'photo-tile';
+    tile.dataset.date = p.date;
+    tile.setAttribute('aria-label', fmtShort(p.date));
+    if (state.comparePick.includes(p.date)) tile.classList.add('is-picked');
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.loading = 'lazy';
+    tile.appendChild(img);
+    grid.appendChild(tile);
+  }
+
+  /* фото, яких більше немає у вибірці (видалені), звільняють URL */
+  for (const [date, url] of photoURLs) {
+    if (!seen.has(date)) { URL.revokeObjectURL(url); photoURLs.delete(date); }
+  }
+}
+
+function openPhoto(date) {
+  viewedPhotoDate = date;
+  $('photo-view-img').src = photoURLs.get(date);
+  $('photo-view-date').textContent = fmtShort(date);
+  $('photo-view').showModal();
+}
+
+async function deleteViewedPhoto() {
+  if (!viewedPhotoDate) return;
+  await db.photos.del(viewedPhotoDate);
+  state.photos = await db.photos.all();
+  $('photo-view').close();
+  renderPhotos();
+  toast('фото видалено');
+}
+
+function togglePhotoCompare() {
+  state.compareMode = !state.compareMode;
+  state.comparePick = [];
+  $('photo-compare-toggle').setAttribute('aria-pressed', String(state.compareMode));
+  $('photo-grid').classList.toggle('is-compare', state.compareMode);
+  markPickedTiles();
+}
+
+function pickForCompare(date) {
+  const i = state.comparePick.indexOf(date);
+  if (i >= 0) state.comparePick.splice(i, 1);
+  else {
+    state.comparePick.push(date);
+    if (state.comparePick.length > 2) state.comparePick.shift();
+  }
+  markPickedTiles();
+  if (state.comparePick.length === 2) showCompare();
+}
+
+function markPickedTiles() {
+  for (const tile of $('photo-grid').children) {
+    tile.classList.toggle('is-picked', state.comparePick.includes(tile.dataset.date));
+  }
+}
+
+function showCompare() {
+  const [a, b] = state.comparePick.slice().sort();   // хронологічно: раніше зліва
+  $('compare-a-img').src = photoURLs.get(a);
+  $('compare-b-img').src = photoURLs.get(b);
+  $('compare-a-date').textContent = fmtShort(a);
+  $('compare-b-date').textContent = fmtShort(b);
+
+  const days = daysBetween(a, b);
+  $('compare-gap').textContent = days > 0 ? `${days} ${plural(days, 'день', 'дні', 'днів')} між фото` : '';
+
+  $('photo-compare').showModal();
 }
 
 /* ═════════════════════════  бекап  ═════════════════════════ */
@@ -462,8 +641,9 @@ async function doImport(e) {
     state.profile = await db.getProfile();
     state.entries = await db.daily.all();
     state.weekly = await db.weekly.all();
+    state.photos = await db.photos.all();
     renderAll();
-    toast(`відновлено ${res.daily}`);
+    toast(`відновлено ${res.daily}${res.photos ? ` + ${res.photos} фото` : ''}`);
   } catch (err) {
     toast('файл не підійшов');
     console.error(err);

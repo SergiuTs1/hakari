@@ -3,13 +3,14 @@
  * Сховища:
  *   daily  { date:'YYYY-MM-DD', weight, protein, trained, note }
  *   weekly { date:'YYYY-MM-DD', neck, waist, hips, ... }   ← наповниться у фазі 3
+ *   photos { date:'YYYY-MM-DD', blob }                     ← фаза 5, фото прогресу
  *   meta   { k, v }                                        ← профіль, налаштування, бекап
  *
  * Сховище weekly створюємо вже зараз, щоб фаза 3 не тягнула міграцію схеми.
  */
 
 const DB_NAME = 'hakari';
-const DB_VER = 1;
+const DB_VER = 2;
 
 let _db = null;
 
@@ -22,6 +23,7 @@ function open() {
       if (!db.objectStoreNames.contains('daily'))  db.createObjectStore('daily',  { keyPath: 'date' });
       if (!db.objectStoreNames.contains('weekly')) db.createObjectStore('weekly', { keyPath: 'date' });
       if (!db.objectStoreNames.contains('meta'))   db.createObjectStore('meta',   { keyPath: 'k' });
+      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'date' });
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
     req.onerror = () => reject(req.error);
@@ -55,6 +57,17 @@ export const weekly = {
   get: date => tx('weekly', 'readonly',  s => s.get(date)),
   del: date => tx('weekly', 'readwrite', s => s.delete(date)),
   all: ()   => tx('weekly', 'readonly',  s => s.getAll()).then(r => r.sort(byDate)),
+};
+
+/* ── фото прогресу ────────────────────────────────────────────
+ * Одне фото на дату — так само, як обміри: новий знімок того самого
+ * дня перекриває попередній, а не додається другим рядом. */
+
+export const photos = {
+  put: rec  => tx('photos', 'readwrite', s => s.put(rec)),
+  get: date => tx('photos', 'readonly',  s => s.get(date)),
+  del: date => tx('photos', 'readwrite', s => s.delete(date)),
+  all: ()   => tx('photos', 'readonly',  s => s.getAll()).then(r => r.sort(byDate)),
 };
 
 /* ── метадані ─────────────────────────────────────────────── */
@@ -107,8 +120,34 @@ export async function requestPersistence() {
 
 /* ── бекап ────────────────────────────────────────────────── */
 
+/* Фото йдуть у той самий файл, що й усе інше. Окремий експорт для фото
+   означав би два бекапи замість одного — а забути про другий саме той
+   ризик, якому тижневий ритуал і має запобігати. Blob кодуємо в base64:
+   формат лишається plain JSON, який зливається так само, як завжди. */
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(base64, type) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+
 export async function exportAll() {
-  const [d, w, profile] = await Promise.all([daily.all(), weekly.all(), getProfile()]);
+  const [d, w, p, profile] = await Promise.all([daily.all(), weekly.all(), photos.all(), getProfile()]);
+  const photosOut = await Promise.all(p.map(async rec => ({
+    date: rec.date,
+    type: rec.blob.type || 'image/jpeg',
+    data: await blobToBase64(rec.blob),
+  })));
   return {
     app: 'hakari',
     version: DB_VER,
@@ -116,6 +155,7 @@ export async function exportAll() {
     profile,
     daily: d,
     weekly: w,
+    photos: photosOut,
   };
 }
 
@@ -127,10 +167,15 @@ export async function importAll(payload) {
   if (!payload || payload.app !== 'hakari') throw new Error('Не файл hakari');
   const d = Array.isArray(payload.daily) ? payload.daily : [];
   const w = Array.isArray(payload.weekly) ? payload.weekly : [];
+  const p = Array.isArray(payload.photos) ? payload.photos : [];
 
   for (const rec of d) if (rec && rec.date) await daily.put(rec);
   for (const rec of w) if (rec && rec.date) await weekly.put(rec);
+  for (const rec of p) {
+    if (!rec || !rec.date || !rec.data) continue;
+    await photos.put({ date: rec.date, blob: base64ToBlob(rec.data, rec.type) });
+  }
   if (payload.profile) await setProfile(payload.profile);
 
-  return { daily: d.length, weekly: w.length };
+  return { daily: d.length, weekly: w.length, photos: p.length };
 }

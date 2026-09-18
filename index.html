@@ -178,6 +178,18 @@
 
   <hr class="rule">
 
+  <span class="label">фото</span>
+  <div class="photo-toolbar">
+    <button class="photo-toolbar__add" id="photo-add">додати фото</button>
+    <button id="photo-compare-toggle" aria-pressed="false">порівняти</button>
+  </div>
+  <input type="file" id="photo-file" accept="image/*" capture="environment" hidden>
+
+  <div class="photo-grid" id="photo-grid"></div>
+  <p class="quiet" id="photo-empty" hidden>фото ще немає — перше можна додати вище</p>
+
+  <hr class="rule">
+
   <span class="label">бекап</span>
   <button class="act" id="export">
     зберегти копію
@@ -218,6 +230,34 @@
 </nav>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- фото на весь екран: тап у галереї -->
+<dialog class="lightbox" id="photo-view">
+  <img id="photo-view-img" alt="">
+  <div class="lightbox__bar">
+    <span class="label" id="photo-view-date"></span>
+    <div class="lightbox__actions">
+      <button id="photo-view-del">видалити</button>
+      <button id="photo-view-close">закрити</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- порівняння двох фото: два тапи в галереї в режимі "порівняти" -->
+<dialog class="compare" id="photo-compare">
+  <div class="compare__pair">
+    <figure>
+      <img id="compare-a-img" alt="">
+      <figcaption class="label" id="compare-a-date"></figcaption>
+    </figure>
+    <figure>
+      <img id="compare-b-img" alt="">
+      <figcaption class="label" id="compare-b-date"></figcaption>
+    </figure>
+  </div>
+  <p class="quiet" id="compare-gap"></p>
+  <button class="act" id="photo-compare-close">закрити</button>
+</dialog>
 
 <script type="module" src="js/app.js"></script>
 </body>
