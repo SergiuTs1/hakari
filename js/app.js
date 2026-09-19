@@ -3,7 +3,7 @@
 import * as db from './db.js';
 import {
   todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween,
-  buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast, marksTally,
+  buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast, marksTally, totalWeighins,
   lossPctPerWeek, isTooFast, bodyFatPct,
   CONSISTENCY_GOAL, FAST_LOSS_PCT, MEASURE_STALE_DAYS,
 } from './calc.js';
@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 14;
+const VERSION = 15;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -431,6 +431,19 @@ function renderLog() {
   const el = $('k-consist');
   el.textContent = `${pct}% · ${c.filled} з ${c.days}`;
   el.className = 'kv__v' + (c.ratio >= CONSISTENCY_GOAL ? '' : ' is-kin');
+
+  /* ── зважувань за весь час ──
+     Число, яке пропуск не зменшує: провалити його неможливо, тому
+     й уникати застосунку після зриву немає причини. Працює не в
+     моменті, а на довгій дистанції — тому стоїть у 記録, куди
+     заходять на тижневий ритуал, а не на 今日 поруч із трендом.
+     Нуль ховаємо: «0 зважувань» на чистому старті — це докір. */
+  const total = totalWeighins(state.entries);
+  $('weighins-row').hidden = !total.count;
+  if (total.count) {
+    $('k-weighins').innerHTML =
+      `${total.count}<i class="kv__since">з ${fmtShort(total.since)}</i>`;
+  }
 
   /* записи, найновіші зверху */
   const list = $('log');

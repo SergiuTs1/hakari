@@ -201,6 +201,23 @@ export function marksTally(entries, days = 7, endISO = todayISO()) {
   return { protein, trained, days };
 }
 
+/* ── скільки зважувань за весь час ────────────────────────────
+ *
+ * Не серія поспіль, а сума від першого запису: число, якого пропуск
+ * не зменшує. Стрік у день пропуску забирає накопичене — і саме в
+ * той день застосунок закривають назавжди. Це не вміє забирати
+ * нічого, тому його нема як провалити й нема чого уникати.
+ *
+ * Рахуємо дні саме зі зважуванням, а не будь-який рядок у базі:
+ * тап по 白 теж створює запис, і лічильник, що росте від самого
+ * перемикача, швидко перестав би щось означати.
+ */
+
+export function totalWeighins(entries) {
+  const days = entries.filter(e => typeof e.weight === 'number' && e.weight > 0);
+  return { count: days.length, since: days.length ? days[0].date : null };
+}
+
 /** Скільки днів минуло від останнього запису. null — записів ще немає. */
 export function daysSinceLast(entries) {
   if (!entries.length) return null;

@@ -251,6 +251,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .kv__v.is-dim { color: var(--fg-dim); }
 .kv__v.is-kin { color: var(--kin); }
 .kv__v.is-warn { color: var(--shu); }
+/* дата початку поряд із лічильником: масштаб для числа, не друга цифра */
+.kv__since { font-style: normal; font-size: 12px; color: var(--fg-dim); margin-left: 9px; }
 
 /* ─────────────────────────  журнал  ───────────────────────── */
 
