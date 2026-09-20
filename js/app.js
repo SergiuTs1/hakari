@@ -1,4 +1,4 @@
-/* 秤 hakari — екрани і взаємодія */
+/* hakari — екрани і взаємодія */
 
 import * as db from './db.js';
 import {
@@ -13,9 +13,9 @@ import { photoTakenDate } from './exif.js';
 
 const $ = id => document.getElementById(id);
 
-/* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
+/* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 16;
+const VERSION = 17;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -49,9 +49,7 @@ async function init() {
 
   $('version').textContent = `версія ${VERSION}`;
   $('today-date').textContent = fmtShort(todayISO());
-  const kou = currentKou();
-  $('kou-kanji').textContent = kou.kanji;
-  $('kou-name').textContent = kou.name;
+  $('kou-name').textContent = currentKou().name;
 
   renderAll();
 }
@@ -108,7 +106,7 @@ function switchScreen(btn) {
   leaving = { el: current, onEnd };
 }
 
-/* ═════════════════════════  今日  ═════════════════════════ */
+/* ═════════════════════════  сьогодні  ═════════════════════════ */
 
 function todayRecord() {
   return state.entries.find(e => e.date === todayISO()) || null;
@@ -157,7 +155,7 @@ function renderToday() {
     fatEl.className = stale ? 'fat is-stale' : 'fat';
   }
 
-  /* 「おかえり」 — тихе повернення без докорів */
+  /* «з поверненням» — тихе повернення без докорів */
   const gap = daysSinceLast(state.entries);
   const ok = $('okaeri');
   if (gap != null && gap >= 7) {
@@ -199,10 +197,10 @@ function renderEntry() {
 }
 
 /* ── підсумок перемикачів за тиждень ──
-   Досі 白 і 鍛 писались у базу й нічого не повертали; це віддача за
+   Досі перемикачі писались у базу й нічого не повертали; це віддача за
    них — рівно те, що натиснуто, без цілі й без знаменника. Порожнє
-   ховаємо цілком, а нуль в одному з двох — разом із його значком:
-   «鍛 0» на головному екрані читається як докір, а не як число. */
+   ховаємо цілком, а нуль в одному з двох — разом із його підписом:
+   «тренування 0» на головному екрані читається як докір, а не як число. */
 function renderTally() {
   const t = marksTally(state.entries);
   const row = $('tally');
@@ -325,7 +323,7 @@ function upsertWeekly(patch) {
   return weeklyQueue;
 }
 
-/* ═════════════════════════  推移  ═════════════════════════ */
+/* ═════════════════════════  тренд  ═════════════════════════ */
 
 function bindTrend() {
   $('ranges').addEventListener('click', e => {
@@ -376,7 +374,7 @@ function renderTrend() {
   }
 }
 
-/* ═════════════════════════  記録  ═════════════════════════ */
+/* ═════════════════════════  записи  ═════════════════════════ */
 
 function bindLog() {
   $('log').addEventListener('click', async e => {
@@ -456,7 +454,7 @@ function renderLog() {
 
   /* Сама кількість записаних днів, без «10%» і без «з 30»: знаменник
      перетворював рядок на табель успішності, а відсоток — на оцінку.
-     Ціль 80% лишається живою в енсо на 今日, де чисел немає.
+     Ціль 80% лишається живою в енсо на «сьогодні», де чисел немає.
      Нуль ховаємо цілком — «0 днів» на чистому старті це докір. */
   const c = consistency(state.entries);
   $('consist-row').hidden = !c.filled;
@@ -468,8 +466,8 @@ function renderLog() {
   /* ── зважувань за весь час ──
      Число, яке пропуск не зменшує: провалити його неможливо, тому
      й уникати застосунку після зриву немає причини. Працює не в
-     моменті, а на довгій дистанції — тому стоїть у 記録, куди
-     заходять на тижневий ритуал, а не на 今日 поруч із трендом.
+     моменті, а на довгій дистанції — тому стоїть у «записи», куди
+     заходять на тижневий ритуал, а не на «сьогодні» поруч із трендом.
      Нуль ховаємо: «0 зважувань» на чистому старті — це докір. */
   const total = totalWeighins(state.entries);
   $('weighins-row').hidden = !total.count;
@@ -487,7 +485,9 @@ function renderLog() {
   for (const e of recent.slice(0, 60)) {
     const li = document.createElement('li');
     li.className = 'log__item';
-    const marks = (e.protein ? '白' : '') + (e.trained ? '鍛' : '');
+    // одна літера на кожен перемикач: рядок журналу вузький, а слова
+    // цілком тут відсунули б саму вагу
+    const marks = (e.protein ? 'Б' : '') + (e.trained ? 'Т' : '');
     li.innerHTML =
       `<span class="log__date">${fmtShort(e.date)}</span>` +
       `<span class="log__w">${e.weight ? fmtKg(e.weight) + ' кг' : '—'}</span>` +
@@ -516,7 +516,7 @@ function renderLog() {
   $('k-measured').className = 'kv__v' + (m ? '' : ' is-dim');
 
   /* Поки зросту або статі немає — просимо їх, а не рахуємо з null.
-     Запит живе тут, а не на 今日: головний екран не місце для вимог. */
+     Запит живе тут, а не на «сьогодні»: головний екран не місце для вимог. */
   const need = $('measure-need');
   const lacks = [
     state.profile.height ? null : 'зріст',

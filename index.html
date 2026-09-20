@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>秤 hakari</title>
+<title>hakari</title>
 <meta name="description" content="Тихий щоденник ваги та складу тіла.">
 
 <!-- iOS: повноекранний режим із домашнього екрана -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="秤">
+<meta name="apple-mobile-web-app-title" content="hakari">
 <meta name="mobile-web-app-capable" content="yes">
 
 <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
@@ -26,16 +26,16 @@
 
 <main class="app">
 
-<!-- ═══════════════════  今日  ═══════════════════ -->
+<!-- ═══════════════════  сьогодні  ═══════════════════ -->
 <section class="screen is-active" id="s-today">
   <div class="head">
-    <h1 class="head__kanji">今日<span>today</span></h1>
+    <h1 class="head__name">сьогодні</h1>
     <time class="head__date" id="today-date"></time>
   </div>
 
   <!-- екран повернення: показується лише після довгої паузи -->
   <div class="okaeri" id="okaeri" hidden>
-    <span class="okaeri__kanji">おかえり</span>
+    <span class="okaeri__word">з поверненням</span>
     <p class="okaeri__text" id="okaeri-text"></p>
   </div>
 
@@ -75,39 +75,32 @@
     </div>
 
     <div class="toggles">
-      <button class="toggle" id="t-protein" aria-pressed="false">
-        <span class="toggle__kanji">白</span>
-        <span class="toggle__label">білок</span>
-      </button>
-      <button class="toggle" id="t-trained" aria-pressed="false">
-        <span class="toggle__kanji">鍛</span>
-        <span class="toggle__label">тренування</span>
-      </button>
+      <button class="toggle" id="t-protein" aria-pressed="false">білок</button>
+      <button class="toggle" id="t-trained" aria-pressed="false">тренування</button>
     </div>
 
-    <!-- Підсумок перемикачів за тиждень: єдина віддача за 白 і 鍛.
+    <!-- Підсумок перемикачів за тиждень: єдина віддача за них.
          Ні цілі, ні знаменника — «5 з 7» читалось би як недобір.
          Чого не було, того й не показуємо: нуль на головному екрані
          працює як докір, а не як факт. -->
     <p class="tally" id="tally" hidden>
       <span class="label">за тиждень</span>
       <span class="tally__marks">
-        <span class="tally__cell" id="tally-protein">白<b></b></span>
-        <span class="tally__cell" id="tally-trained">鍛<b></b></span>
+        <span class="tally__cell" id="tally-protein">білок<b></b></span>
+        <span class="tally__cell" id="tally-trained">тренування<b></b></span>
       </span>
     </p>
   </div>
 
   <footer class="kou">
-    <span class="kou__kanji" id="kou-kanji"></span>
     <span class="kou__name" id="kou-name"></span>
   </footer>
 </section>
 
-<!-- ═══════════════════  推移  ═══════════════════ -->
+<!-- ═══════════════════  тренд  ═══════════════════ -->
 <section class="screen" id="s-trend">
   <div class="head">
-    <h1 class="head__kanji">推移<span>trend</span></h1>
+    <h1 class="head__name">тренд</h1>
   </div>
 
   <div class="ranges" id="ranges" role="tablist">
@@ -128,10 +121,10 @@
   <p class="quiet" id="rate-note" hidden></p>
 </section>
 
-<!-- ═══════════════════  記録  ═══════════════════ -->
+<!-- ═══════════════════  записи  ═══════════════════ -->
 <section class="screen" id="s-log">
   <div class="head">
-    <h1 class="head__kanji">記録<span>record</span></h1>
+    <h1 class="head__name">записи</h1>
   </div>
 
   <span class="label">останні 30 днів</span>
@@ -244,13 +237,13 @@
 <!-- ═══════════════════  навігація  ═══════════════════ -->
 <nav class="nav" id="nav" role="tablist">
   <button role="tab" data-screen="today" aria-selected="true">
-    <span class="nav__kanji">今日</span><span class="nav__label">сьогодні</span>
+    <span class="nav__label">сьогодні</span>
   </button>
   <button role="tab" data-screen="trend" aria-selected="false">
-    <span class="nav__kanji">推移</span><span class="nav__label">тренд</span>
+    <span class="nav__label">тренд</span>
   </button>
   <button role="tab" data-screen="log" aria-selected="false">
-    <span class="nav__kanji">記録</span><span class="nav__label">записи</span>
+    <span class="nav__label">записи</span>
   </button>
 </nav>
 

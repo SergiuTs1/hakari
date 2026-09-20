@@ -1,4 +1,4 @@
-/* 秤 hakari — сховище (IndexedDB)
+/* hakari — сховище (IndexedDB)
  *
  * Сховища:
  *   daily  { date:'YYYY-MM-DD', weight, protein, trained, note }
