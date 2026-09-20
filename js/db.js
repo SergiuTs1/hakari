@@ -116,8 +116,6 @@ function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
 export const DEFAULT_PROFILE = {
   height: null,
   sex: null,
-  goalWeight: null,
-  goalRate: 0.5,      // цільовий темп, кг/тиждень
   startDate: null,
   reminder: '07:30',
 };

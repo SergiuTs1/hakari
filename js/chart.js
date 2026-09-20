@@ -21,9 +21,8 @@ const el = (name, attrs = {}) => {
 /**
  * @param {SVGElement} svg     порожній <svg class="chart">
  * @param {Array}      series  результат buildSeries()
- * @param {number|null} goal   цільова вага, якщо задана
  */
-export function renderChart(svg, series, goal = null) {
+export function renderChart(svg, series) {
   svg.textContent = '';
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
@@ -33,10 +32,10 @@ export function renderChart(svg, series, goal = null) {
   }
 
   /* — вертикальний масштаб —
-     Ціль свідомо НЕ входить у масштаб. Якщо до неї ще 4 кг, вона
-     розтягне шкалу і сплющить увесь тренд у вузьку смужку — саме те,
-     через що здається, ніби нічого не відбувається. Шкала йде по
-     реальних даних, а лінія цілі проявляється, коли ти підходиш до неї. */
+     Тільки по реальних даних. Цільової ваги в застосунку більше немає,
+     але правило лишається: будь-яке зовнішнє число, втягнуте в шкалу,
+     сплющує тренд у вузьку смужку — саме те, через що здається, ніби
+     нічого не відбувається. */
   const vals = [];
   for (const p of series) {
     vals.push(p.trend);
@@ -52,14 +51,6 @@ export function renderChart(svg, series, goal = null) {
   const plotH = H - PAD.t - PAD.b;
   const x = i => PAD.l + (i / (series.length - 1)) * plotW;
   const y = v => PAD.t + (1 - (v - lo) / (hi - lo)) * plotH;
-
-  /* — лінія цілі — */
-  if (goal != null && goal >= lo && goal <= hi) {
-    svg.appendChild(el('path', {
-      class: 'chart__goal',
-      d: `M${PAD.l} ${y(goal)} H${W - PAD.r}`,
-    }));
-  }
 
   /* — сирі зважування: ледь помітні порожні кола — */
   series.forEach((p, i) => {

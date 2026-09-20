@@ -66,7 +66,11 @@
       <input class="entry__input" id="weight" type="text"
              inputmode="decimal" autocomplete="off" enterkeyhint="done"
              placeholder="00.0" aria-label="Вага сьогодні, кг">
-      <span class="entry__unit">кг</span>
+      <span class="entry__unit" id="entry-unit">кг</span>
+      <!-- Після збереження поле стоїть порожнє, а тут з'являється
+           «записано»: сире число на екрані цілий день — те, що
+           тригерить емоцію. Цифра лишається за один тап по полю. -->
+      <span class="entry__done" id="entry-done" hidden>записано</span>
       <button class="entry__save" id="save" disabled>записати</button>
     </div>
 
@@ -120,7 +124,6 @@
   <div class="kv"><span class="label">зараз, тренд</span><span class="kv__v" id="k-now">—</span></div>
   <div class="kv"><span class="label">разом</span><span class="kv__v" id="k-total">—</span></div>
   <div class="kv"><span class="label">темп</span><span class="kv__v" id="k-rate">—</span></div>
-  <div class="kv"><span class="label">до цілі</span><span class="kv__v" id="k-togo">—</span></div>
 
   <p class="quiet" id="rate-note" hidden></p>
 </section>
@@ -133,8 +136,10 @@
 
   <span class="label">останні 30 днів</span>
   <div class="grid" id="grid"></div>
-  <div class="kv kv--bare">
-    <span class="label">консистентність</span>
+  <!-- Без відсотка й без «з 30»: знаменник робив із рядка табель
+       успішності. Лишається сама кількість записаних днів. -->
+  <div class="kv kv--bare" id="consist-row" hidden>
+    <span class="label">записано днів</span>
     <span class="kv__v" id="k-consist">—</span>
   </div>
 
@@ -152,10 +157,6 @@
   <div class="field">
     <label for="p-height">зріст, см</label>
     <input id="p-height" type="text" inputmode="numeric" autocomplete="off" placeholder="—">
-  </div>
-  <div class="field">
-    <label for="p-goal">ціль, кг</label>
-    <input id="p-goal" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
   </div>
   <!-- стать потрібна формулі Navy: у чоловіків і жінок різні коефіцієнти -->
   <div class="field">

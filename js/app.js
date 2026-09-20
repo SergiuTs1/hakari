@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 15;
+const VERSION = 16;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -172,11 +172,30 @@ function renderToday() {
 
   /* сьогоднішній запис, якщо вже є */
   const rec = todayRecord();
-  $('weight').value = rec && rec.weight ? String(rec.weight) : '';
   $('t-protein').setAttribute('aria-pressed', String(!!(rec && rec.protein)));
   $('t-trained').setAttribute('aria-pressed', String(!!(rec && rec.trained)));
-  validateEntry();
+  renderEntry();
   renderTally();
+}
+
+/* ── поле ваги ──
+   Сире число на головний екран не виходить. Раніше поле тримало
+   введену вагу цілий день — за 60px під трендом, тобто рівно та цифра,
+   яка стрибає на ±1 кг від солі й сну й тригерить емоцію. Тепер після
+   збереження поле порожнє, а поруч стоїть «записано»: видно, що день
+   зарахований, і не видно самого числа. Воно за один тап по полю —
+   перевірити описку можна, натрапляти на нього щоранку ні. */
+function renderEntry() {
+  const rec = todayRecord();
+  const saved = rec && rec.weight ? rec.weight : null;
+  const input = $('weight');
+
+  // поле під пальцем не чіпаємо: renderToday() смикається й з інших екранів
+  if (document.activeElement !== input) input.value = '';
+  input.placeholder = saved ? '' : '00.0';
+  $('entry-unit').hidden = !!saved;      // «кг» без числа — самотній підпис
+  $('entry-done').hidden = !saved;
+  validateEntry();
 }
 
 /* ── підсумок перемикачів за тиждень ──
@@ -203,6 +222,19 @@ function bindEntry() {
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); saveWeight(); }
   });
+
+  /* тап по полю дістає збережене число — на випадок описки. Вихід
+     без правки ховає його знову; набране, але не збережене лишаємо
+     на місці, інакше правка зникала б просто під пальцем. */
+  input.addEventListener('focus', () => {
+    const rec = todayRecord();
+    if (!input.value && rec && rec.weight) input.value = String(rec.weight);
+  });
+  input.addEventListener('blur', () => {
+    const rec = todayRecord();
+    const typed = parseWeight(input.value);
+    if (typed === null || (rec && typed === rec.weight)) renderEntry();
+  });
   $('save').addEventListener('click', saveWeight);
 
   for (const [id, key] of [['t-protein', 'protein'], ['t-trained', 'trained']]) {
@@ -225,7 +257,14 @@ function parseWeight(raw) {
 }
 
 function validateEntry() {
-  $('save').disabled = parseWeight($('weight').value) === null;
+  const input = $('weight');
+  $('save').disabled = parseWeight(input.value) === null;
+
+  /* У стані спокою після зважування кнопці нема чого робити, а «ЗАПИСАНО»
+     і «ЗАПИСАТИ» поруч — два однакові слова в один рядок. Кнопка
+     повертається, щойно в полі знову щось набрано. */
+  const rec = todayRecord();
+  $('save').hidden = !!(rec && rec.weight) && input.value === '';
 }
 
 async function saveWeight() {
@@ -301,12 +340,11 @@ function bindTrend() {
 function renderTrend() {
   const full = buildSeries(state.entries);
   const series = state.range > 0 ? full.slice(-state.range) : full;
-  const goal = state.profile.goalWeight;
 
-  renderChart($('chart'), series, goal);
+  renderChart($('chart'), series);
 
   if (!full.length) {
-    for (const id of ['k-start', 'k-now', 'k-total', 'k-rate', 'k-togo']) $(id).textContent = '—';
+    for (const id of ['k-start', 'k-now', 'k-total', 'k-rate']) $(id).textContent = '—';
     $('rate-note').hidden = true;
     return;
   }
@@ -324,9 +362,6 @@ function renderTrend() {
 
   $('k-rate').textContent = rate == null ? '—' : `${fmtSigned(rate)} кг / тиж`;
   $('k-rate').className = 'kv__v' + (isTooFast(rate, last.trend) ? ' is-warn' : '');
-
-  $('k-togo').textContent = goal ? `${fmtKg(Math.abs(last.trend - goal))} кг` : '—';
-  $('k-togo').className = 'kv__v' + (goal ? '' : ' is-dim');
 
   /* нагляд за темпом: понад ~1% маси на тиждень — зона втрати м'язів */
   const note = $('rate-note');
@@ -354,7 +389,6 @@ function bindLog() {
   });
 
   bindProfileField('p-height', 'height', v => (v >= 100 && v <= 250 ? v : null));
-  bindProfileField('p-goal', 'goalWeight', v => (v >= 30 && v <= 300 ? v : null), true);
 
   $('p-sex').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-sex]');
@@ -377,21 +411,15 @@ function bindLog() {
   $('import-file').addEventListener('change', doImport);
 }
 
-function bindProfileField(id, key, validate, nullable = false) {
+function bindProfileField(id, key, validate) {
   const inp = $(id);
   inp.addEventListener('change', async () => {
     const raw = inp.value.replace(',', '.').trim();
-    if (nullable && raw === '') {
-      state.profile = { ...state.profile, [key]: null };
-      await db.setProfile({ [key]: null });
-      renderTrend();
-      return;
-    }
     const v = validate(parseFloat(raw));
     if (v === null || Number.isNaN(v)) { renderLog(); return; }   // тихо відкочуємо
     state.profile = { ...state.profile, [key]: v };
     await db.setProfile({ [key]: v });
-    renderTrend();
+    renderToday();                       // зріст живить формулу Navy, тобто % жиру
     toast('збережено');
   });
 }
@@ -426,11 +454,16 @@ function renderLog() {
     grid.appendChild(i);
   }
 
+  /* Сама кількість записаних днів, без «10%» і без «з 30»: знаменник
+     перетворював рядок на табель успішності, а відсоток — на оцінку.
+     Ціль 80% лишається живою в енсо на 今日, де чисел немає.
+     Нуль ховаємо цілком — «0 днів» на чистому старті це докір. */
   const c = consistency(state.entries);
-  const pct = Math.round(c.ratio * 100);
-  const el = $('k-consist');
-  el.textContent = `${pct}% · ${c.filled} з ${c.days}`;
-  el.className = 'kv__v' + (c.ratio >= CONSISTENCY_GOAL ? '' : ' is-kin');
+  $('consist-row').hidden = !c.filled;
+  if (c.filled) {
+    $('k-consist').textContent = `${c.filled} ${plural(c.filled, 'день', 'дні', 'днів')}`;
+    $('k-consist').className = 'kv__v';
+  }
 
   /* ── зважувань за весь час ──
      Число, яке пропуск не зменшує: провалити його неможливо, тому
@@ -464,7 +497,6 @@ function renderLog() {
   }
 
   $('p-height').value = state.profile.height ?? '';
-  $('p-goal').value = state.profile.goalWeight ?? '';
 
   for (const b of $('p-sex').children) {
     b.setAttribute('aria-checked', String(b.dataset.sex === state.profile.sex));

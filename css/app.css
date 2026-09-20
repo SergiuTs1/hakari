@@ -178,6 +178,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .entry__input::placeholder { color: var(--hairline); }
 .entry__unit { font-size: 15px; color: var(--fg-dim); }
+.entry__done { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-dim); }
 
 .entry__save {
   font: var(--t-label);
@@ -229,7 +230,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chart { width: 100%; display: block; overflow: visible; }
 .chart__raw    { fill: none; stroke: var(--fg-dim); opacity: .36; }
 .chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.chart__goal   { fill: none; stroke: var(--koke); stroke-width: 1; stroke-dasharray: 2 5; opacity: .85; }
 .chart__tick   { font: var(--t-label); letter-spacing: .1em; fill: var(--fg-dim); }
 
 .ranges { display: flex; gap: 22px; margin-bottom: 26px; }
