@@ -88,6 +88,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: block;
 }
 .figure__unit  { font-size: 19px; color: var(--fg-dim); margin-left: 6px; letter-spacing: 0; }
+/* десята частка кілограма — тихіше за цілі: саме вона стрибає від солі
+   й сну, і саме вона не має першою ловити погляд */
+.figure__frac  { font-size: .56em; color: var(--fg-dim); letter-spacing: 0; }
 .figure__label { display: block; margin-top: 14px; }
 
 .delta {
@@ -129,10 +132,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .enso__arc {
   fill: none;
   stroke: var(--ink-line);
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
   transition: stroke-dashoffset .8s var(--ease);
 }
+/* Шари мазка. Різниця в товщині мала навмисно: з круглими наконечниками
+   уступи зливаються в звуження, а не в намистину. Так дуга перестає
+   читатись як індикатор завантаження. */
+.enso__arc--wet { stroke-width: 3.2; }
+.enso__arc--mid { stroke-width: 2.6; }
+
 .enso-wrap { position: relative; }
 .enso-wrap .figure {
   position: absolute;
@@ -189,6 +198,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 .toggle {
   flex: 1;
+  position: relative;
+  isolation: isolate;
   border: 1px solid var(--hairline);
   padding: 15px 10px 13px;
   text-align: center;
@@ -197,6 +208,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .toggle { font: var(--t-serif); }
 .toggle[aria-pressed="true"] { border-color: var(--ink-line); color: var(--fg); }
+
+/* Заливка знизу вгору. Перемикачі — єдина тактильна дія в застосунку,
+   а віддачею на неї була сама лише зміна кольору рамки. Тон тонований,
+   не тушшю: підпис має лишитись читабельним, а екран тихим. */
+.toggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--surface);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform .22s var(--ease);
+}
+.toggle[aria-pressed="true"]::before { transform: scaleY(1); }
 
 /* Підсумок за тиждень — поруч із самими перемикачами, там, де дію й
    роблять. Тихіший за кнопки: це відповідь, а не місце для тапу. */
@@ -221,6 +247,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chart { width: 100%; display: block; overflow: visible; }
 .chart__raw    { fill: none; stroke: var(--fg-dim); opacity: .36; }
 .chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* дні без зважування: тренд там стоїть рівно, і лінія про це каже
+   тим самим золотом, що й пропуски в календарі */
+.chart__trend--gap { stroke: var(--kin); stroke-width: 1.1; }
 .chart__tick   { font: var(--t-label); letter-spacing: .1em; fill: var(--fg-dim); }
 
 .ranges { display: flex; gap: 22px; margin-bottom: 26px; }
@@ -359,7 +388,28 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .compare__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 #compare-b-img { opacity: 0; }
 
-.compare__slider { width: 100%; margin-top: 14px; accent-color: var(--accent); }
+/* Єдиний елемент, що досі виглядав системним контролом iOS. Тонка
+   лінія й кругле вістря — та сама мова, що в графіку й енсо. */
+.compare__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  margin-top: 18px;
+  background: none;
+  outline: none;
+}
+.compare__slider::-webkit-slider-runnable-track { height: 1px; background: var(--hairline); }
+.compare__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  margin-top: -8.5px;          /* центруємо на однопіксельному треку */
+  border-radius: 50%;
+  background: var(--ink-line);
+}
+.compare__slider::-moz-range-track { height: 1px; background: var(--hairline); }
+.compare__slider::-moz-range-thumb {
+  width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--ink-line);
+}
 .compare__dates { display: flex; justify-content: space-between; margin-top: 6px; }
 
 /* ─────────────────────────  нижня навігація  ───────────────────────── */
@@ -373,6 +423,17 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   background: var(--bg);
   border-top: 1px solid var(--hairline);
   padding: 15px 0 calc(15px + env(safe-area-inset-bottom));
+}
+
+/* Контент іде під панель, а не обрізається об неї. Глухий фон лишається
+   запасним: без підтримки розмиття напівпрозора панель зробила б текст
+   під собою нечитабельним. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .nav {
+    background: var(--bg-veil);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
 }
 .nav button {
   flex: 0 1 120px;
@@ -409,7 +470,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   padding: var(--gutter);
   text-align: center;
 }
-.browser__name { font: var(--f-serif); font-size: 30px; font-weight: 300; letter-spacing: .04em; color: var(--fg); }
+.browser__name { font-family: var(--f-serif); font-size: 30px; font-weight: 300; letter-spacing: .04em; color: var(--fg); }
 .browser__text { font: var(--t-body); color: var(--fg); margin: 0; max-width: 20em; }
 .browser__hint { font: var(--t-body); font-size: 13px; color: var(--fg-dim); margin: 0; }
 .browser__rescue { margin-top: var(--stack-lg); display: grid; gap: 4px; justify-items: center; }

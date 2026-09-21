@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 18;
+const VERSION = 19;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -159,14 +159,17 @@ function renderToday() {
 
   /* велика цифра — це ТРЕНД, а не сьогоднішня вага.
      Сира вага стрибає на ±1 кг від солі й сну; показувати її як
-     головний результат — найшвидший спосіб втратити мотивацію. */
+     головний результат — найшвидший спосіб втратити мотивацію.
+     Десята частка йде меншим кеглем і приглушено: цілі кілограми
+     читаються першими, а найрухливіша частина числа перестає тягнути
+     погляд на себе щоранку. */
   $('trend-value').innerHTML = last
-    ? `${fmtKg(last.trend)}<span class="figure__unit">кг</span>`
+    ? `${splitKg(last.trend)}<span class="figure__unit">кг</span>`
     : `—<span class="figure__unit">кг</span>`;
 
   /* енсо = консистентність за 30 днів */
   const c = consistency(state.entries);
-  renderEnso($('enso-arc'), c.ratio / CONSISTENCY_GOAL);
+  renderEnso($('enso-wrap'), c.ratio / CONSISTENCY_GOAL);
 
   /* дельта за тиждень */
   const rate = rateKgPerWeek(series);
@@ -252,6 +255,12 @@ function renderTally() {
     $(id).hidden = !n;
     $(id).querySelector('b').textContent = n;
   }
+}
+
+/** «75.4» → ціла частина звичайним кеглем, десята — тихішим. */
+function splitKg(v) {
+  const [whole, frac] = fmtKg(v).split('.');
+  return frac ? `${whole}<span class="figure__frac">.${frac}</span>` : whole;
 }
 
 function bindEntry() {

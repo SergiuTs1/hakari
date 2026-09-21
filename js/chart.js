@@ -58,11 +58,18 @@ export function renderChart(svg, series) {
     svg.appendChild(el('circle', { class: 'chart__raw', cx: x(i), cy: y(p.weight), r: 1.9, 'stroke-width': 1 }));
   });
 
-  /* — тренд: суцільний штрих — */
-  svg.appendChild(el('path', {
-    class: 'chart__trend',
-    d: series.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.trend).toFixed(1)}`).join(' '),
-  }));
+  /* — тренд: штрих тушшю, а в дні без зважування — золота тріщина —
+     EMA в пропущений день не рухається, тобто лінія там рівна
+     горизонталь. Малювати її тією ж тушшю означає вдавати, що дані
+     є; календар-кінцугі про той самий пропуск каже чесніше, і тут
+     має бути та сама мова. */
+  for (const seg of splitGaps(series)) {
+    svg.appendChild(el('path', {
+      class: seg.gap ? 'chart__trend chart__trend--gap' : 'chart__trend',
+      d: seg.pts.map((i, k) =>
+        `${k ? 'L' : 'M'}${x(i).toFixed(1)} ${y(series[i].trend).toFixed(1)}`).join(' '),
+    }));
+  }
 
   /* — межі шкали: дві цифри, більше нічого — */
   const realHi = Math.max(...series.map(p => p.trend));
@@ -73,6 +80,21 @@ export function renderChart(svg, series) {
   /* — дати: тільки початок і кінець — */
   svg.appendChild(text(PAD.l, H - 8, fmtShort(series[0].date)));
   svg.appendChild(text(W - PAD.r, H - 8, fmtShort(series[series.length - 1].date), { 'text-anchor': 'end' }));
+}
+
+/**
+ * Ділить ряд на відрізки «є зважування» / «пропуск». Лінія не рветься:
+ * кожен новий відрізок починається з останньої точки попереднього.
+ */
+function splitGaps(series) {
+  const out = [];
+  for (let i = 1; i < series.length; i++) {
+    const gap = series[i].weight == null;
+    const last = out[out.length - 1];
+    if (last && last.gap === gap) last.pts.push(i);
+    else out.push({ gap, pts: [i - 1, i] });
+  }
+  return out;
 }
 
 function text(x, y, str, attrs = {}) {
@@ -88,13 +110,27 @@ function text(x, y, str, attrs = {}) {
 
 const SWEEP = 0.88;   // частка кола, яку взагалі можна заповнити
 
-export function renderEnso(arc, ratio) {
-  const r = Number(arc.getAttribute('r'));
+/**
+ * Кільце консистентності. Шарів мазка кілька: кожен зі своїм data-len,
+ * коротші — товщі, тому штрих звужується до кінця, як пензель.
+ * @param {HTMLElement} wrap  контейнер з дугами .enso__arc
+ */
+export function renderEnso(wrap, ratio) {
+  const arcs = wrap.querySelectorAll('.enso__arc');
+  const r = Number(arcs[0].getAttribute('r'));
   const C = 2 * Math.PI * r;
   const len = Math.max(0, Math.min(1, ratio)) * SWEEP * C;
 
+  for (const arc of arcs) paint(arc, C, len * Number(arc.dataset.len));
+}
+
+/* Довжина задається зсувом, а не самим штрихом: dasharray лишається
+   незмінним, бо його браузер не інтерполює — раніше transition у CSS
+   стояв на dashoffset, а мінявся dasharray, і кільце не домальовувалось,
+   а виникало миттєво. */
+function paint(circle, C, len) {
   // нульова дуга з круглим наконечником малюється як крапка — ховаємо її
-  arc.style.opacity = len < 0.5 ? '0' : '';
-  arc.setAttribute('stroke-dasharray', `${len.toFixed(2)} ${C.toFixed(2)}`);
-  arc.setAttribute('stroke-dashoffset', '0');
+  circle.style.opacity = len < 0.5 ? '0' : '';
+  circle.setAttribute('stroke-dasharray', `${C.toFixed(2)} ${C.toFixed(2)}`);
+  circle.setAttribute('stroke-dashoffset', (C - len).toFixed(2));
 }

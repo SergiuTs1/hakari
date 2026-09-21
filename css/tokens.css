@@ -5,6 +5,7 @@
   /* — поверхні — */
   --kinari:   #F4F1EA;  /* небілений папір */
   --kinari-2: #EBE7DD;  /* тонована поверхня */
+  --kinari-v: rgba(244, 241, 234, .86);  /* той самий папір, крізь який видно */
 
   /* — туш — */
   --sumi:     #1A1A18;  /* основний текст */
@@ -19,6 +20,7 @@
 
   /* — семантика — */
   --bg:        var(--kinari);
+  --bg-veil:   var(--kinari-v);
   --surface:   var(--kinari-2);
   --fg:        var(--sumi);
   --fg-dim:    var(--usuzumi);
@@ -55,6 +57,7 @@
   :root:not([data-theme="light"]) {
     --kinari:   #14140F;  /* темна туш */
     --kinari-2: #1D1D17;
+    --kinari-v: rgba(20, 20, 15, .8);
     --sumi:     #E6E2D7;
     --usuzumi:  #8A867C;
     --hairline: rgba(230, 226, 215, .14);
@@ -69,6 +72,7 @@
 :root[data-theme="dark"] {
   --kinari:   #14140F;
   --kinari-2: #1D1D17;
+  --kinari-v: rgba(20, 20, 15, .8);
   --sumi:     #E6E2D7;
   --usuzumi:  #8A867C;
   --hairline: rgba(230, 226, 215, .14);

@@ -44,8 +44,20 @@
       <g transform="rotate(-90 80 80)">
         <circle class="enso__track" cx="80" cy="80" r="66"
                 stroke-dasharray="364.9 414.7"></circle>
-        <circle class="enso__arc" id="enso-arc" cx="80" cy="80" r="66"
-                stroke-dasharray="0 414.7"></circle>
+        <!-- Мазок пензлем: три дуги того самого кольору, коротші —
+             товщі. Разом вони дають штрих, що входить густо й сходить
+             нанівець. Напівпрозорий шар тут не годиться: він визирає
+             з-під основного й читається як сіра тінь, а не як туш.
+             data-len — частка дуги, доки доходить цей шар.
+             Анімується dashoffset, а не dasharray: другий браузер не
+             інтерполює, і кільце з’являлось стрибком замість того,
+             щоб домалюватись. -->
+        <circle class="enso__arc enso__arc--wet" cx="80" cy="80" r="66" data-len=".42"
+                stroke-dasharray="414.7 414.7" stroke-dashoffset="414.7"></circle>
+        <circle class="enso__arc enso__arc--mid" cx="80" cy="80" r="66" data-len=".74"
+                stroke-dasharray="414.7 414.7" stroke-dashoffset="414.7"></circle>
+        <circle class="enso__arc" cx="80" cy="80" r="66" data-len="1"
+                stroke-dasharray="414.7 414.7" stroke-dashoffset="414.7"></circle>
       </g>
     </svg>
     <div class="figure">
