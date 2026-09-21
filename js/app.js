@@ -1,4 +1,4 @@
-/* 秤 hakari — екрани і взаємодія */
+/* hakari — екрани і взаємодія */
 
 import * as db from './db.js';
 import {
@@ -13,9 +13,9 @@ import { photoTakenDate } from './exif.js';
 
 const $ = id => document.getElementById(id);
 
-/* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
+/* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 16;
+const VERSION = 18;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -51,9 +51,7 @@ async function init() {
 
   $('version').textContent = `версія ${VERSION}`;
   $('today-date').textContent = fmtShort(todayISO());
-  const kou = currentKou();
-  $('kou-kanji').textContent = kou.kanji;
-  $('kou-name').textContent = kou.name;
+  $('kou-name').textContent = currentKou().name;
 
   renderAll();
 }
@@ -149,7 +147,7 @@ function switchScreen(btn) {
   leaving = { el: current, onEnd };
 }
 
-/* ═════════════════════════  今日  ═════════════════════════ */
+/* ═════════════════════════  сьогодні  ═════════════════════════ */
 
 function todayRecord() {
   return state.entries.find(e => e.date === todayISO()) || null;
@@ -198,7 +196,7 @@ function renderToday() {
     fatEl.className = stale ? 'fat is-stale' : 'fat';
   }
 
-  /* 「おかえり」 — тихе повернення без докорів */
+  /* «з поверненням» — тихе повернення без докорів */
   const gap = daysSinceLast(state.entries);
   const ok = $('okaeri');
   if (gap != null && gap >= 7) {
@@ -213,18 +211,37 @@ function renderToday() {
 
   /* сьогоднішній запис, якщо вже є */
   const rec = todayRecord();
-  $('weight').value = rec && rec.weight ? String(rec.weight) : '';
   $('t-protein').setAttribute('aria-pressed', String(!!(rec && rec.protein)));
   $('t-trained').setAttribute('aria-pressed', String(!!(rec && rec.trained)));
-  validateEntry();
+  renderEntry();
   renderTally();
 }
 
+/* ── поле ваги ──
+   Сире число на головний екран не виходить. Раніше поле тримало
+   введену вагу цілий день — за 60px під трендом, тобто рівно та цифра,
+   яка стрибає на ±1 кг від солі й сну й тригерить емоцію. Тепер після
+   збереження поле порожнє, а поруч стоїть «записано»: видно, що день
+   зарахований, і не видно самого числа. Воно за один тап по полю —
+   перевірити описку можна, натрапляти на нього щоранку ні. */
+function renderEntry() {
+  const rec = todayRecord();
+  const saved = rec && rec.weight ? rec.weight : null;
+  const input = $('weight');
+
+  // поле під пальцем не чіпаємо: renderToday() смикається й з інших екранів
+  if (document.activeElement !== input) input.value = '';
+  input.placeholder = saved ? '' : '00.0';
+  $('entry-unit').hidden = !!saved;      // «кг» без числа — самотній підпис
+  $('entry-done').hidden = !saved;
+  validateEntry();
+}
+
 /* ── підсумок перемикачів за тиждень ──
-   Досі 白 і 鍛 писались у базу й нічого не повертали; це віддача за
+   Досі перемикачі писались у базу й нічого не повертали; це віддача за
    них — рівно те, що натиснуто, без цілі й без знаменника. Порожнє
-   ховаємо цілком, а нуль в одному з двох — разом із його значком:
-   «鍛 0» на головному екрані читається як докір, а не як число. */
+   ховаємо цілком, а нуль в одному з двох — разом із його підписом:
+   «тренування 0» на головному екрані читається як докір, а не як число. */
 function renderTally() {
   const t = marksTally(state.entries);
   const row = $('tally');
@@ -243,6 +260,19 @@ function bindEntry() {
   input.addEventListener('input', validateEntry);
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); saveWeight(); }
+  });
+
+  /* тап по полю дістає збережене число — на випадок описки. Вихід
+     без правки ховає його знову; набране, але не збережене лишаємо
+     на місці, інакше правка зникала б просто під пальцем. */
+  input.addEventListener('focus', () => {
+    const rec = todayRecord();
+    if (!input.value && rec && rec.weight) input.value = String(rec.weight);
+  });
+  input.addEventListener('blur', () => {
+    const rec = todayRecord();
+    const typed = parseWeight(input.value);
+    if (typed === null || (rec && typed === rec.weight)) renderEntry();
   });
   $('save').addEventListener('click', saveWeight);
 
@@ -266,7 +296,14 @@ function parseWeight(raw) {
 }
 
 function validateEntry() {
-  $('save').disabled = parseWeight($('weight').value) === null;
+  const input = $('weight');
+  $('save').disabled = parseWeight(input.value) === null;
+
+  /* У стані спокою після зважування кнопці нема чого робити, а «ЗАПИСАНО»
+     і «ЗАПИСАТИ» поруч — два однакові слова в один рядок. Кнопка
+     повертається, щойно в полі знову щось набрано. */
+  const rec = todayRecord();
+  $('save').hidden = !!(rec && rec.weight) && input.value === '';
 }
 
 async function saveWeight() {
@@ -327,7 +364,7 @@ function upsertWeekly(patch) {
   return weeklyQueue;
 }
 
-/* ═════════════════════════  推移  ═════════════════════════ */
+/* ═════════════════════════  тренд  ═════════════════════════ */
 
 function bindTrend() {
   $('ranges').addEventListener('click', e => {
@@ -342,12 +379,11 @@ function bindTrend() {
 function renderTrend() {
   const full = buildSeries(state.entries);
   const series = state.range > 0 ? full.slice(-state.range) : full;
-  const goal = state.profile.goalWeight;
 
-  renderChart($('chart'), series, goal);
+  renderChart($('chart'), series);
 
   if (!full.length) {
-    for (const id of ['k-start', 'k-now', 'k-total', 'k-rate', 'k-togo']) $(id).textContent = '—';
+    for (const id of ['k-start', 'k-now', 'k-total', 'k-rate']) $(id).textContent = '—';
     $('rate-note').hidden = true;
     return;
   }
@@ -366,9 +402,6 @@ function renderTrend() {
   $('k-rate').textContent = rate == null ? '—' : `${fmtSigned(rate)} кг / тиж`;
   $('k-rate').className = 'kv__v' + (isTooFast(rate, last.trend) ? ' is-warn' : '');
 
-  $('k-togo').textContent = goal ? `${fmtKg(Math.abs(last.trend - goal))} кг` : '—';
-  $('k-togo').className = 'kv__v' + (goal ? '' : ' is-dim');
-
   /* нагляд за темпом: понад ~1% маси на тиждень — зона втрати м'язів */
   const note = $('rate-note');
   if (isTooFast(rate, last.trend)) {
@@ -382,7 +415,7 @@ function renderTrend() {
   }
 }
 
-/* ═════════════════════════  記録  ═════════════════════════ */
+/* ═════════════════════════  записи  ═════════════════════════ */
 
 function bindLog() {
   $('log').addEventListener('click', async e => {
@@ -395,7 +428,6 @@ function bindLog() {
   });
 
   bindProfileField('p-height', 'height', v => (v >= 100 && v <= 250 ? v : null));
-  bindProfileField('p-goal', 'goalWeight', v => (v >= 30 && v <= 300 ? v : null), true);
 
   $('p-sex').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-sex]');
@@ -418,21 +450,15 @@ function bindLog() {
   $('import-file').addEventListener('change', doImport);
 }
 
-function bindProfileField(id, key, validate, nullable = false) {
+function bindProfileField(id, key, validate) {
   const inp = $(id);
   inp.addEventListener('change', async () => {
     const raw = inp.value.replace(',', '.').trim();
-    if (nullable && raw === '') {
-      state.profile = { ...state.profile, [key]: null };
-      await db.setProfile({ [key]: null });
-      renderTrend();
-      return;
-    }
     const v = validate(parseFloat(raw));
     if (v === null || Number.isNaN(v)) { renderLog(); return; }   // тихо відкочуємо
     state.profile = { ...state.profile, [key]: v };
     await db.setProfile({ [key]: v });
-    renderTrend();
+    renderToday();                       // зріст живить формулу Navy, тобто % жиру
     toast('збережено');
   });
 }
@@ -467,17 +493,22 @@ function renderLog() {
     grid.appendChild(i);
   }
 
+  /* Сама кількість записаних днів, без «10%» і без «з 30»: знаменник
+     перетворював рядок на табель успішності, а відсоток — на оцінку.
+     Ціль 80% лишається живою в енсо на «сьогодні», де чисел немає.
+     Нуль ховаємо цілком — «0 днів» на чистому старті це докір. */
   const c = consistency(state.entries);
-  const pct = Math.round(c.ratio * 100);
-  const el = $('k-consist');
-  el.textContent = `${pct}% · ${c.filled} з ${c.days}`;
-  el.className = 'kv__v' + (c.ratio >= CONSISTENCY_GOAL ? '' : ' is-kin');
+  $('consist-row').hidden = !c.filled;
+  if (c.filled) {
+    $('k-consist').textContent = `${c.filled} ${plural(c.filled, 'день', 'дні', 'днів')}`;
+    $('k-consist').className = 'kv__v';
+  }
 
   /* ── зважувань за весь час ──
      Число, яке пропуск не зменшує: провалити його неможливо, тому
      й уникати застосунку після зриву немає причини. Працює не в
-     моменті, а на довгій дистанції — тому стоїть у 記録, куди
-     заходять на тижневий ритуал, а не на 今日 поруч із трендом.
+     моменті, а на довгій дистанції — тому стоїть у «записи», куди
+     заходять на тижневий ритуал, а не на «сьогодні» поруч із трендом.
      Нуль ховаємо: «0 зважувань» на чистому старті — це докір. */
   const total = totalWeighins(state.entries);
   $('weighins-row').hidden = !total.count;
@@ -495,7 +526,9 @@ function renderLog() {
   for (const e of recent.slice(0, 60)) {
     const li = document.createElement('li');
     li.className = 'log__item';
-    const marks = (e.protein ? '白' : '') + (e.trained ? '鍛' : '');
+    // одна літера на кожен перемикач: рядок журналу вузький, а слова
+    // цілком тут відсунули б саму вагу
+    const marks = (e.protein ? 'Б' : '') + (e.trained ? 'Т' : '');
     li.innerHTML =
       `<span class="log__date">${fmtShort(e.date)}</span>` +
       `<span class="log__w">${e.weight ? fmtKg(e.weight) + ' кг' : '—'}</span>` +
@@ -505,7 +538,6 @@ function renderLog() {
   }
 
   $('p-height').value = state.profile.height ?? '';
-  $('p-goal').value = state.profile.goalWeight ?? '';
 
   for (const b of $('p-sex').children) {
     b.setAttribute('aria-checked', String(b.dataset.sex === state.profile.sex));
@@ -525,7 +557,7 @@ function renderLog() {
   $('k-measured').className = 'kv__v' + (m ? '' : ' is-dim');
 
   /* Поки зросту або статі немає — просимо їх, а не рахуємо з null.
-     Запит живе тут, а не на 今日: головний екран не місце для вимог. */
+     Запит живе тут, а не на «сьогодні»: головний екран не місце для вимог. */
   const need = $('measure-need');
   const lacks = [
     state.profile.height ? null : 'зріст',

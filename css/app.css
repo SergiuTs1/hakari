@@ -1,4 +1,4 @@
-/* 秤 hakari — layout & components */
+/* hakari — розкладка й компоненти */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -72,14 +72,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   justify-content: space-between;
   margin-bottom: var(--stack-lg);
 }
-.head__kanji { font: var(--t-kanji); letter-spacing: .06em; }
-.head__kanji span {
-  font: var(--t-label);
-  letter-spacing: var(--ls-label);
-  color: var(--fg-dim);
-  margin-left: 10px;
-  text-transform: uppercase;
-}
+.head__name { font: var(--t-serif); letter-spacing: .04em; }
 .head__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); }
 
 .rule { height: 1px; background: var(--hairline); border: 0; margin: var(--stack-lg) 0; }
@@ -127,7 +120,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* обмір давній — цифра гасне, але лишається на місці */
 .fat.is-stale b { color: var(--fg-dim); }
 
-/* ─────────────────────────  енсо 円相  ───────────────────────── */
+/* ─────────────────────────  енсо  ───────────────────────── */
 
 /* Кільце свідомо просторе: цифра живе всередині, і при вазі 100+ кг
    вона все одно не має торкатись штриха. */
@@ -178,6 +171,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .entry__input::placeholder { color: var(--hairline); }
 .entry__unit { font-size: 15px; color: var(--fg-dim); }
+.entry__done { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-dim); }
 
 .entry__save {
   font: var(--t-label);
@@ -201,13 +195,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
   color: var(--fg-dim);
 }
-.toggle__kanji { font: var(--t-kanji); display: block; margin-bottom: 8px; }
-.toggle__label { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
+.toggle { font: var(--t-serif); }
 .toggle[aria-pressed="true"] { border-color: var(--ink-line); color: var(--fg); }
 
-/* Підсумок за тиждень. Ті самі 白/鍛, що в журналі, тільки поруч із
-   самими перемикачами — там, де дію й роблять. Тихіший за кнопки:
-   це відповідь, а не місце для тапу. */
+/* Підсумок за тиждень — поруч із самими перемикачами, там, де дію й
+   роблять. Тихіший за кнопки: це відповідь, а не місце для тапу. */
 .tally {
   display: flex;
   align-items: baseline;
@@ -215,8 +207,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   gap: 16px;
   margin: 14px 2px 0;
 }
-.tally__marks { display: flex; gap: 20px; }
-.tally__cell { font: var(--t-kanji); font-size: 13px; color: var(--fg-dim); }
+.tally__marks { display: flex; gap: 18px; }
+.tally__cell { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-dim); }
 .tally__cell b {
   font: 400 15px/1 var(--f-sans);
   font-variant-numeric: tabular-nums;
@@ -229,7 +221,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chart { width: 100%; display: block; overflow: visible; }
 .chart__raw    { fill: none; stroke: var(--fg-dim); opacity: .36; }
 .chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.chart__goal   { fill: none; stroke: var(--koke); stroke-width: 1; stroke-dasharray: 2 5; opacity: .85; }
 .chart__tick   { font: var(--t-label); letter-spacing: .1em; fill: var(--fg-dim); }
 
 .ranges { display: flex; gap: 22px; margin-bottom: 26px; }
@@ -260,7 +251,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .log__item { display: flex; align-items: baseline; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--hairline); }
 .log__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); width: 90px; flex: none; white-space: nowrap; }
 .log__w { font-variant-numeric: tabular-nums; font-size: 16px; }
-.log__marks { margin-left: auto; font: var(--t-kanji); font-size: 13px; color: var(--fg-dim); letter-spacing: .3em; }
+.log__marks { margin-left: auto; font: var(--t-label); letter-spacing: .3em; color: var(--fg-dim); }
 .log__del { font-size: 17px; color: var(--fg-dim); opacity: .35; padding: 0 2px 0 12px; line-height: 1; }
 
 /* Календар-кінцугі: тридцять тонких рисок, а не сітка квадратів.
@@ -292,7 +283,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   width: 120px; padding: 0; border-radius: 0; -webkit-appearance: none;
 }
 
-/* вибір із двох — той самий контур, що в .toggle на 今日 */
+/* вибір із двох — той самий контур, що в .toggle на «сьогодні» */
 .pick { display: flex; gap: 8px; }
 .pick button {
   font-size: 14px;
@@ -390,13 +381,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   transition: color var(--dur) var(--ease);
 }
 .nav button[aria-selected="true"] { color: var(--fg); }
-.nav__kanji { font: var(--t-kanji); display: block; margin-bottom: 7px; }
 .nav__label { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
 
-/* ─────────────────────────  футер: мікросезон 七十二候  ───────────────────────── */
+/* ─────────────────────────  футер: мікросезон  ───────────────────────── */
 
 .kou { margin-top: var(--stack-lg); text-align: center; color: var(--fg-dim); }
-.kou__kanji { font: var(--t-kanji); font-size: 14px; display: block; margin-bottom: 7px; opacity: .85; }
 .kou__name { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; }
 
 /* ─────────────────────────  тихі повідомлення  ───────────────────────── */
@@ -420,12 +409,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   padding: var(--gutter);
   text-align: center;
 }
-.browser__kanji { font: var(--f-serif); font-size: 44px; font-weight: 300; color: var(--fg); }
+.browser__name { font: var(--f-serif); font-size: 30px; font-weight: 300; letter-spacing: .04em; color: var(--fg); }
 .browser__text { font: var(--t-body); color: var(--fg); margin: 0; max-width: 20em; }
 .browser__hint { font: var(--t-body); font-size: 13px; color: var(--fg-dim); margin: 0; }
 .browser__rescue { margin-top: var(--stack-lg); display: grid; gap: 4px; justify-items: center; }
 .browser__rescue .browser__text { color: var(--kin); }
-/* та сама кнопка, що в 記録, але посеред порожнього екрана:
+/* та сама кнопка, що в «записах», але посеред порожнього екрана:
    без лінійки знизу й по центру, бо тут немає списку, до якого ставати */
 .browser__rescue .act { text-align: center; border-bottom: 0; width: auto; }
 
@@ -445,7 +434,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 }
 .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 
-/* екран повернення 「おかえり」 */
+/* екран повернення */
 .okaeri { text-align: center; padding: 40px 0 var(--stack-lg); }
-.okaeri__kanji { font-family: var(--f-serif); font-size: 32px; font-weight: 300; display: block; margin-bottom: 18px; }
+.okaeri__word { font-family: var(--f-serif); font-size: 25px; display: block; margin-bottom: 18px; }
 .okaeri__text { color: var(--fg-dim); font-size: 14px; line-height: 1.85; }

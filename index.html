@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>秤 hakari</title>
+<title>hakari</title>
 <meta name="description" content="Тихий щоденник ваги та складу тіла.">
 
 <!-- iOS: повноекранний режим із домашнього екрана -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="秤">
+<meta name="apple-mobile-web-app-title" content="hakari">
 <meta name="mobile-web-app-capable" content="yes">
 
 <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
@@ -26,16 +26,16 @@
 
 <main class="app">
 
-<!-- ═══════════════════  今日  ═══════════════════ -->
+<!-- ═══════════════════  сьогодні  ═══════════════════ -->
 <section class="screen is-active" id="s-today">
   <div class="head">
-    <h1 class="head__kanji">今日<span>today</span></h1>
+    <h1 class="head__name">сьогодні</h1>
     <time class="head__date" id="today-date"></time>
   </div>
 
   <!-- екран повернення: показується лише після довгої паузи -->
   <div class="okaeri" id="okaeri" hidden>
-    <span class="okaeri__kanji">おかえり</span>
+    <span class="okaeri__word">з поверненням</span>
     <p class="okaeri__text" id="okaeri-text"></p>
   </div>
 
@@ -66,44 +66,41 @@
       <input class="entry__input" id="weight" type="text"
              inputmode="decimal" autocomplete="off" enterkeyhint="done"
              placeholder="00.0" aria-label="Вага сьогодні, кг">
-      <span class="entry__unit">кг</span>
+      <span class="entry__unit" id="entry-unit">кг</span>
+      <!-- Після збереження поле стоїть порожнє, а тут з'являється
+           «записано»: сире число на екрані цілий день — те, що
+           тригерить емоцію. Цифра лишається за один тап по полю. -->
+      <span class="entry__done" id="entry-done" hidden>записано</span>
       <button class="entry__save" id="save" disabled>записати</button>
     </div>
 
     <div class="toggles">
-      <button class="toggle" id="t-protein" aria-pressed="false">
-        <span class="toggle__kanji">白</span>
-        <span class="toggle__label">білок</span>
-      </button>
-      <button class="toggle" id="t-trained" aria-pressed="false">
-        <span class="toggle__kanji">鍛</span>
-        <span class="toggle__label">тренування</span>
-      </button>
+      <button class="toggle" id="t-protein" aria-pressed="false">білок</button>
+      <button class="toggle" id="t-trained" aria-pressed="false">тренування</button>
     </div>
 
-    <!-- Підсумок перемикачів за тиждень: єдина віддача за 白 і 鍛.
+    <!-- Підсумок перемикачів за тиждень: єдина віддача за них.
          Ні цілі, ні знаменника — «5 з 7» читалось би як недобір.
          Чого не було, того й не показуємо: нуль на головному екрані
          працює як докір, а не як факт. -->
     <p class="tally" id="tally" hidden>
       <span class="label">за тиждень</span>
       <span class="tally__marks">
-        <span class="tally__cell" id="tally-protein">白<b></b></span>
-        <span class="tally__cell" id="tally-trained">鍛<b></b></span>
+        <span class="tally__cell" id="tally-protein">білок<b></b></span>
+        <span class="tally__cell" id="tally-trained">тренування<b></b></span>
       </span>
     </p>
   </div>
 
   <footer class="kou">
-    <span class="kou__kanji" id="kou-kanji"></span>
     <span class="kou__name" id="kou-name"></span>
   </footer>
 </section>
 
-<!-- ═══════════════════  推移  ═══════════════════ -->
+<!-- ═══════════════════  тренд  ═══════════════════ -->
 <section class="screen" id="s-trend">
   <div class="head">
-    <h1 class="head__kanji">推移<span>trend</span></h1>
+    <h1 class="head__name">тренд</h1>
   </div>
 
   <div class="ranges" id="ranges" role="tablist">
@@ -120,21 +117,22 @@
   <div class="kv"><span class="label">зараз, тренд</span><span class="kv__v" id="k-now">—</span></div>
   <div class="kv"><span class="label">разом</span><span class="kv__v" id="k-total">—</span></div>
   <div class="kv"><span class="label">темп</span><span class="kv__v" id="k-rate">—</span></div>
-  <div class="kv"><span class="label">до цілі</span><span class="kv__v" id="k-togo">—</span></div>
 
   <p class="quiet" id="rate-note" hidden></p>
 </section>
 
-<!-- ═══════════════════  記録  ═══════════════════ -->
+<!-- ═══════════════════  записи  ═══════════════════ -->
 <section class="screen" id="s-log">
   <div class="head">
-    <h1 class="head__kanji">記録<span>record</span></h1>
+    <h1 class="head__name">записи</h1>
   </div>
 
   <span class="label">останні 30 днів</span>
   <div class="grid" id="grid"></div>
-  <div class="kv kv--bare">
-    <span class="label">консистентність</span>
+  <!-- Без відсотка й без «з 30»: знаменник робив із рядка табель
+       успішності. Лишається сама кількість записаних днів. -->
+  <div class="kv kv--bare" id="consist-row" hidden>
+    <span class="label">записано днів</span>
     <span class="kv__v" id="k-consist">—</span>
   </div>
 
@@ -152,10 +150,6 @@
   <div class="field">
     <label for="p-height">зріст, см</label>
     <input id="p-height" type="text" inputmode="numeric" autocomplete="off" placeholder="—">
-  </div>
-  <div class="field">
-    <label for="p-goal">ціль, кг</label>
-    <input id="p-goal" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
   </div>
   <!-- стать потрібна формулі Navy: у чоловіків і жінок різні коефіцієнти -->
   <div class="field">
@@ -243,13 +237,13 @@
 <!-- ═══════════════════  навігація  ═══════════════════ -->
 <nav class="nav" id="nav" role="tablist">
   <button role="tab" data-screen="today" aria-selected="true">
-    <span class="nav__kanji">今日</span><span class="nav__label">сьогодні</span>
+    <span class="nav__label">сьогодні</span>
   </button>
   <button role="tab" data-screen="trend" aria-selected="false">
-    <span class="nav__kanji">推移</span><span class="nav__label">тренд</span>
+    <span class="nav__label">тренд</span>
   </button>
   <button role="tab" data-screen="log" aria-selected="false">
-    <span class="nav__kanji">記録</span><span class="nav__label">записи</span>
+    <span class="nav__label">записи</span>
   </button>
 </nav>
 
@@ -258,10 +252,10 @@
      паралельну базу, якої ти більше ніколи не побачиш. Помилка тиха,
      тому ввід тут просто недоступний. -->
 <div class="browser" id="browser" hidden>
-  <span class="browser__kanji">秤</span>
+  <span class="browser__name">hakari</span>
   <p class="browser__text">
     це вкладка браузера.<br>
-    записи живуть у застосунку з домашнього екрана — відкрий 秤 звідти.
+    записи живуть у застосунку з домашнього екрана — відкрий його звідти.
   </p>
   <p class="browser__hint">якщо іконки ще немає:<br>поділитись → «На екран Домів»</p>
 
