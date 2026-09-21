@@ -253,6 +253,29 @@
   </button>
 </nav>
 
+<!-- Вкладка браузера. У застосунка з домашнього екрана на iOS своє
+     сховище, окреме від Safari: вага, введена тут, лягла б у другу,
+     паралельну базу, якої ти більше ніколи не побачиш. Помилка тиха,
+     тому ввід тут просто недоступний. -->
+<div class="browser" id="browser" hidden>
+  <span class="browser__kanji">秤</span>
+  <p class="browser__text">
+    це вкладка браузера.<br>
+    записи живуть у застосунку з домашнього екрана — відкрий 秤 звідти.
+  </p>
+  <p class="browser__hint">якщо іконки ще немає:<br>поділитись → «На екран Домів»</p>
+
+  <!-- Якщо в цю вкладку колись уже щось ввели — дати це забрати,
+       а не сховати мовчки. -->
+  <div class="browser__rescue" id="browser-rescue" hidden>
+    <p class="browser__text" id="browser-count"></p>
+    <button class="act" id="browser-export">
+      зберегти копію
+      <small>щоб перенести в застосунок через «відновити»</small>
+    </button>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- фото на весь екран: тап у галереї -->

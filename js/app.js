@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу 記録,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 15;
+const VERSION = 16;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -36,6 +36,8 @@ async function init() {
   db.requestPersistence();                 // навмисно без await — не блокує перший екран
   registerSW();
 
+  if (isBrowserTab()) { await showBrowserNotice(); return; }
+
   state.profile = await db.getProfile();
   state.entries = await db.daily.all();
   state.weekly = await db.weekly.all();
@@ -54,6 +56,45 @@ async function init() {
   $('kou-name').textContent = kou.name;
 
   renderAll();
+}
+
+/* ── вкладка браузера замість іконки ──────────────────────────
+ *
+ * На iOS у застосунка з домашнього екрана своє сховище, окреме від
+ * Safari. Той самий сайт у вкладці — це інша база: порожня історія,
+ * і введена там вага лягає в паралельну копію, якої більше ніколи
+ * не побачиш. Помилка тиха, тому ввід у вкладці просто закритий.
+ *
+ * Потрібно це через нагадування: Команди вміють «Відкрити URL», але
+ * не вміють відкрити застосунок з домашнього екрана (у списку його
+ * немає). Отже вкладка вранці таки відкриється — хай вона буде
+ * сигналом «тапни іконку», а не місцем, де можна зіпсувати дані.
+ *
+ * localhost виняток: інакше розробка перетворилась би на роботу
+ * наосліп — так само, як service worker там навмисно не кешує.
+ */
+
+function isBrowserTab() {
+  // список тримаємо всередині: init() викликається вище за це місце,
+  // і const на рівні модуля був би ще в тимчасовій мертвій зоні
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) return false;
+  const standalone = navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  return !standalone;
+}
+
+async function showBrowserNotice() {
+  $('browser').hidden = false;
+
+  /* якщо в цю вкладку колись уже щось ввели — дати це забрати,
+     а не сховати мовчки разом з екраном */
+  const stray = await db.daily.all();
+  if (!stray.length) return;
+
+  $('browser-rescue').hidden = false;
+  $('browser-count').textContent =
+    `у цій вкладці ${stray.length} ${plural(stray.length, 'запис', 'записи', 'записів')}`;
+  $('browser-export').addEventListener('click', doExport);
 }
 
 function renderAll() {
