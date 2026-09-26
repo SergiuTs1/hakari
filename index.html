@@ -134,6 +134,10 @@
 </section>
 
 <!-- ═══════════════════  записи  ═══════════════════ -->
+<!-- Порядок — за ритмом, а не за віком коду: спершу стан, далі те, що
+     роблять щонеділі (обміри, фото, бекап), і аж потім рідкісне —
+     профіль і архів, обидва згорнуті. Раніше екран був майже п'ять
+     екранів заввишки, з них половина — архів, який гортали повз. -->
 <section class="screen" id="s-log">
   <div class="head">
     <h1 class="head__name">записи</h1>
@@ -158,22 +162,6 @@
 
   <hr class="rule">
 
-  <span class="label">профіль</span>
-  <div class="field">
-    <label for="p-height">зріст, см</label>
-    <input id="p-height" type="text" inputmode="numeric" autocomplete="off" placeholder="—">
-  </div>
-  <!-- стать потрібна формулі Navy: у чоловіків і жінок різні коефіцієнти -->
-  <div class="field">
-    <span>стать</span>
-    <div class="pick" id="p-sex" role="radiogroup" aria-label="Стать">
-      <button role="radio" data-sex="m" aria-checked="false">чол.</button>
-      <button role="radio" data-sex="f" aria-checked="false">жін.</button>
-    </div>
-  </div>
-
-  <hr class="rule">
-
   <span class="label">обміри</span>
   <div class="field">
     <label for="m-neck">шия, см</label>
@@ -193,13 +181,22 @@
     <span class="kv__v" id="k-measured">—</span>
   </div>
 
-  <!-- протокол вирішує все: похибка в сантиметр дає ~0.7% жиру,
-       і шия тут важить рівно стільки ж, скільки талія -->
-  <p class="hint">
-    Шию мірять під кадиком, талію — на рівні пупка на видиху, не втягуючи.
-    Найкраще зранку натще й того самого дня тижня.<br>
-    Стабільність тут важливіша за точність самого числа.
-  </p>
+  <!-- Протокол вирішує все: похибка в сантиметр дає ~0.7% жиру, і шия
+       тут важить рівно стільки ж, скільки талія. Але читають його
+       перші кілька разів, а не щотижня, — тому згорнутий. Поки обмірів
+       мало, розгортається сам (див. bindLog). -->
+  <details class="fold" id="fold-how">
+    <summary class="fold__head">
+      <span class="label">як мірити</span>
+      <span class="fold__note"></span>
+      <i class="fold__mark" aria-hidden="true"></i>
+    </summary>
+    <p class="hint">
+      Шию мірять під кадиком, талію — на рівні пупка на видиху, не втягуючи.
+      Найкраще зранку натще й того самого дня тижня.<br>
+      Стабільність тут важливіша за точність самого числа.
+    </p>
+  </details>
   <p class="hint is-kin" id="measure-need" hidden></p>
 
   <hr class="rule">
@@ -227,21 +224,53 @@
   </button>
   <input type="file" id="import-file" accept=".json,application/json" hidden>
 
+  <!-- Версія коду йде тим самим абзацом, а не окремим: на один рядок
+       тексту припадало 88px порожнечі згори й знизу. Це єдиний спосіб
+       з телефону відрізнити «оновилось» від «показує старе з кешу». -->
   <p class="quiet">
     Дані живуть лише на цьому пристрої.<br>
-    Зберігай копію щонеділі — це єдина слабка точка.
+    Зберігай копію щонеділі — це єдина слабка точка.<br>
+    <span id="version"></span>
   </p>
-
-  <!-- версія коду, що реально працює: єдиний спосіб з телефону
-       відрізнити «оновилось» від «показує старе з кешу» -->
-  <p class="quiet" id="version"></p>
 
   <hr class="rule">
 
-  <!-- архів іде останнім: він довгий, і до нього звертаються найрідше -->
-  <span class="label">записи</span>
-  <ul class="log" id="log"></ul>
-  <p class="quiet" id="log-empty" hidden>записів ще немає</p>
+  <!-- Зріст вводять один раз у житті, стать тим паче. Поки їх немає,
+       розгортається сам — саме сюди веде прохання з обмірів. -->
+  <details class="fold" id="fold-profile">
+    <summary class="fold__head">
+      <span class="label">профіль</span>
+      <span class="fold__note" id="profile-note"></span>
+      <i class="fold__mark" aria-hidden="true"></i>
+    </summary>
+    <div class="field">
+      <label for="p-height">зріст, см</label>
+      <input id="p-height" type="text" inputmode="numeric" autocomplete="off" placeholder="—">
+    </div>
+    <!-- стать потрібна формулі Navy: у чоловіків і жінок різні коефіцієнти -->
+    <div class="field">
+      <span>стать</span>
+      <div class="pick" id="p-sex" role="radiogroup" aria-label="Стать">
+        <button role="radio" data-sex="m" aria-checked="false">чол.</button>
+        <button role="radio" data-sex="f" aria-checked="false">жін.</button>
+      </div>
+    </div>
+  </details>
+
+  <hr class="rule" id="rule-archive">
+
+  <!-- Архів: половина висоти екрана заради списку, у який заглядають
+       найрідше. Згорнутий, і слово «записи» більше не стоїть на
+       сторінці двічі — тут воно «архів». -->
+  <details class="fold" id="fold-archive">
+    <summary class="fold__head">
+      <span class="label">архів</span>
+      <span class="fold__note" id="archive-note"></span>
+      <i class="fold__mark" aria-hidden="true"></i>
+    </summary>
+    <ul class="log" id="log"></ul>
+    <p class="quiet" id="log-empty" hidden>записів ще немає</p>
+  </details>
 </section>
 
 </main>

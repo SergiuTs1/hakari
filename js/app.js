@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 19;
+const VERSION = 20;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -429,11 +429,20 @@ function renderTrend() {
 function bindLog() {
   $('log').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-del]');
-    if (!btn) return;
-    await db.daily.del(btn.dataset.del);
-    state.entries = await db.daily.all();
-    renderAll();
-    toast('видалено');
+    if (btn) {
+      await db.daily.del(btn.dataset.del);
+      state.entries = await db.daily.all();
+      renderAll();
+      toast('видалено');
+      return;
+    }
+    /* Тап по рядку відкриває «видалити» саме в ньому й закриває решту:
+       стерти день з першого дотику не можна, як і фото в галереї. */
+    const row = e.target.closest('.log__item');
+    if (!row) return;
+    const open = row.classList.contains('is-open');
+    for (const li of $('log').children) li.classList.remove('is-open');
+    row.classList.toggle('is-open', !open);
   });
 
   bindProfileField('p-height', 'height', v => (v >= 100 && v <= 250 ? v : null));
@@ -453,6 +462,12 @@ function bindLog() {
   bindMeasure('m-neck', 'neck', 20, 70);
   bindMeasure('m-waist', 'waist', 40, 200);
   bindMeasure('m-hips', 'hips', 50, 200);
+
+  /* Стан згорток далі належить людині, тому вирішуємо його один раз
+     на старті, а не в renderLog(): інакше перемальовування після
+     кожного збереження саме розкривало б те, що щойно згорнули. */
+  $('fold-profile').open = !state.profile.height || !state.profile.sex;
+  $('fold-how').open = state.weekly.length < 3;
 
   $('export').addEventListener('click', doExport);
   $('import-btn').addEventListener('click', () => $('import-file').click());
@@ -526,11 +541,23 @@ function renderLog() {
       `${total.count}<i class="kv__since">з ${fmtShort(total.since)}</i>`;
   }
 
+  /* Підсумок профілю прямо в згортці: розгортати, щоб перевірити
+     зріст, не треба. Порожнього не пишемо — там і так відкрито. */
+  const { height, sex } = state.profile;
+  $('profile-note').textContent = height && sex
+    ? `${height} см · ${sex === 'f' ? 'жін.' : 'чол.'}`
+    : '';
+
   /* записи, найновіші зверху */
   const list = $('log');
   list.textContent = '';
   const recent = state.entries.slice().reverse();
   $('log-empty').hidden = recent.length > 0;
+  $('archive-note').textContent = recent.length
+    ? `${recent.length} ${plural(recent.length, 'запис', 'записи', 'записів')}`
+    : '';
+  $('fold-archive').hidden = !recent.length;
+  $('rule-archive').hidden = !recent.length;
 
   for (const e of recent.slice(0, 60)) {
     const li = document.createElement('li');
@@ -542,7 +569,7 @@ function renderLog() {
       `<span class="log__date">${fmtShort(e.date)}</span>` +
       `<span class="log__w">${e.weight ? fmtKg(e.weight) + ' кг' : '—'}</span>` +
       `<span class="log__marks">${marks}</span>` +
-      `<button class="log__del" data-del="${e.date}" aria-label="Видалити запис">×</button>`;
+      `<button class="log__del" data-del="${e.date}">видалити</button>`;
     list.appendChild(li);
   }
 
@@ -574,7 +601,7 @@ function renderLog() {
   ].filter(Boolean);
   need.hidden = lacks.length === 0;
   need.textContent = lacks.length
-    ? `Щоб порахувати відсоток жиру, заповни ${lacks.join(' і ')} вище.`
+    ? `Щоб порахувати відсоток жиру, заповни ${lacks.join(' і ')} у профілі нижче.`
     : '';
 
   renderPhotos();

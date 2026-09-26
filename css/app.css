@@ -75,7 +75,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .head__name { font: var(--t-serif); letter-spacing: .04em; }
 .head__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); }
 
-.rule { height: 1px; background: var(--hairline); border: 0; margin: var(--stack-lg) 0; }
+/* 22px, а не 44: при 88px між секціями й 55px усередині секції
+   відстань між групами була вдвічі більша за саму групу, і сторінка
+   читалась як розсипана, а не згрупована. */
+.rule { height: 1px; background: var(--hairline); border: 0; margin: var(--stack) 0; }
 
 /* ─────────────────────────  головна цифра  ───────────────────────── */
 
@@ -281,7 +284,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .log__date { font: var(--t-label); letter-spacing: var(--ls-label); color: var(--fg-dim); width: 90px; flex: none; white-space: nowrap; }
 .log__w { font-variant-numeric: tabular-nums; font-size: 16px; }
 .log__marks { margin-left: auto; font: var(--t-label); letter-spacing: .3em; color: var(--fg-dim); }
-.log__del { font-size: 17px; color: var(--fg-dim); opacity: .35; padding: 0 2px 0 12px; line-height: 1; }
+/* Колонка з тридцяти хрестиків — головний внесок у відчуття
+   розсипаного екрана, та ще й у список, де тап поруч стирає день.
+   Видалення тепер відкривається тапом по самому рядку — той самий
+   принцип, що для фото: сітка мініатюр не місце для стирання. */
+.log__item { cursor: pointer; }
+.log__del {
+  display: none;
+  font: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--shu);
+  padding: 0 6px 0 14px;
+}
+.log__item.is-open .log__del { display: inline; }
+.log__item.is-open { background: var(--surface); }
 
 /* Календар-кінцугі: тридцять тонких рисок, а не сітка квадратів.
    Квадрати читаються як таблиця досягнень і тиснуть; риски — як
@@ -291,6 +308,42 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .grid i { display: block; height: 38px; background: var(--hairline); }
 .grid i.is-on  { background: var(--ink-line); }
 .grid i.is-gap { background: var(--kin); opacity: .5; }
+
+/* ─────────────────────────  згортання  ─────────────────────────
+   Нативний <details>: нуль JS, працює з клавіатури й VoiceOver, і стан
+   переживає перемальовування списку всередині. Сюди йде те, до чого
+   звертаються рідше за раз на тиждень, — архів, профіль, протокол
+   обмірів. */
+
+.fold__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;                    /* щоб згортка не липла до рядка над нею */
+  cursor: pointer;
+  list-style: none;                  /* Firefox */
+}
+.fold__head::-webkit-details-marker { display: none; }
+.fold__head::marker { content: ''; }
+
+.fold__note {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* вістря замість трикутника: та сама тонка лінія, що всюди */
+.fold__mark {
+  flex: none;
+  width: 7px; height: 7px;
+  margin: -3px 2px 0 0;
+  border-right: 1px solid var(--fg-dim);
+  border-bottom: 1px solid var(--fg-dim);
+  transform: rotate(45deg);
+  transition: transform var(--dur) var(--ease);
+}
+.fold[open] .fold__mark { transform: rotate(225deg); margin-top: 2px; }
 
 /* ─────────────────────────  дії  ───────────────────────── */
 
@@ -451,7 +504,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 
 /* ─────────────────────────  тихі повідомлення  ───────────────────────── */
 
-.quiet { text-align: center; color: var(--fg-dim); font-size: 14px; padding: var(--stack-lg) 0; line-height: 1.8; }
+.quiet { text-align: center; color: var(--fg-dim); font-size: 14px; padding: 24px 0; line-height: 1.8; }
 
 /* ─────────────────────  вкладка браузера  ───────────────────── */
 
