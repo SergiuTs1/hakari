@@ -1,6 +1,6 @@
 /* hakari — математика
  *
- * Тут живе вся аналітика. Фаза 3 (US Navy → жир / суха маса) додається сюди ж.
+ * Тут живе вся аналітика: тренд ваги, темп, консистентність, US Navy.
  * Жодних звертань до DOM чи бази — тільки чисті функції.
  */
 
@@ -75,21 +75,38 @@ const maxISO = (a, b) => (a > b ? a : b);
  * Лінійна регресія по згладженому тренду за останні N днів.
  * Береться саме тренд, а не сирі ваги — інакше один солоний вечір
  * перетворює тижневий висновок на сміття.
+ *
+ * Точки — лише дні зі зважуванням, а вікно закінчується останнім
+ * зважуванням, а не сьогоднішнім днем. У пропущені дні тренд стоїть
+ * рівно, і якщо рахувати й їх, після десяти днів без ваг темп −0.5
+ * показувався як −0.25: пропуск удавав, що схуднення сповільнилось.
  */
 
 export function rateKgPerWeek(series, days = 21) {
-  const tail = series.slice(-days);
+  const tail = lastWindow(series.filter(p => p.weight != null), days);
   if (tail.length < 4) return null;
+  const s = slopePerDay(tail);
+  return s == null ? null : s * 7;   // кг за день → кг за тиждень
+}
 
-  const n = tail.length;
+/** Точки за останні `days` днів, рахуючи від найновішої точки. */
+function lastWindow(points, days) {
+  if (!points.length) return [];
+  const start = addDays(points[points.length - 1].date, -(days - 1));
+  return points.filter(p => p.date >= start);
+}
+
+/** Нахил тренду за день; x — справжня відстань у днях, а не номер точки. */
+function slopePerDay(points) {
+  const n = points.length;
+  const x0 = points[0].date;
   let sx = 0, sy = 0, sxy = 0, sxx = 0;
-  tail.forEach((p, i) => {
-    sx += i; sy += p.trend; sxy += i * p.trend; sxx += i * i;
-  });
-
+  for (const p of points) {
+    const x = daysBetween(x0, p.date);
+    sx += x; sy += p.trend; sxy += x * p.trend; sxx += x * x;
+  }
   const denom = n * sxx - sx * sx;
-  if (denom === 0) return null;
-  return ((n * sxy - sx * sy) / denom) * 7;   // кг за день → кг за тиждень
+  return denom === 0 ? null : (n * sxy - sx * sy) / denom;
 }
 
 /* ── нагляд за швидкістю ──────────────────────────────────────
@@ -150,6 +167,48 @@ export function bodyFatPct({ sex, height, neck, waist, hips }) {
   return pct > 2 && pct < 70 ? pct : null;        // за межами — теж описка
 }
 
+/* ── тренд жиру ───────────────────────────────────────────────
+ *
+ * Той самий принцип, що й з вагою: головна цифра — згладжена, а не
+ * останній сирий обмір. Сантиметр похибки на талії чи шиї — це ~0.7%
+ * жиру, тож одиночний обмір стрибає не менше за ранкову вагу.
+ *
+ * Обміри раз на тиждень, тому точок у сім разів менше, ніж зважувань,
+ * і α більша: з 0.1 тренд жиру доганяв би реальність півроку. 0.35 —
+ * приблизно місяць обмірів на те, щоб зміна стала видно.
+ *
+ * При рекомпозиції вага може місяцями стояти, поки жир іде. Саме цей
+ * тренд тоді й показує, що рух є.
+ */
+
+export const FAT_ALPHA = 0.35;
+
+/**
+ * Лише обміри, з яких формула дала число; неповні пропускаються.
+ * @returns {Array<{date, pct: number, trend: number}>}
+ */
+export function buildFatSeries(weekly, { sex, height }, alpha = FAT_ALPHA) {
+  const out = [];
+  let trend = null;
+  for (const r of weekly) {
+    const pct = bodyFatPct({ sex, height, neck: r.neck, waist: r.waist, hips: r.hips });
+    if (pct == null) continue;
+    trend = trend == null ? pct : trend + alpha * (pct - trend);
+    out.push({ date: r.date, pct, trend });
+  }
+  return out;
+}
+
+/* Темп жиру — за місяць, а не за тиждень: на тижневих точках тижневий
+   темп був би шумом одного обміру. Вікно — вісім тижнів, мінімум три
+   обміри, щоб лінія мала через що проходити. */
+export function fatRatePerMonth(fat, days = 56) {
+  const tail = lastWindow(fat, days);
+  if (tail.length < 3) return null;
+  const s = slopePerDay(tail);
+  return s == null ? null : s * 30;
+}
+
 /* Після скількох днів цифра вважається підстарілою й гасне.
    Десять, а не сім: пропущена неділя — не причина щось міняти. */
 export const MEASURE_STALE_DAYS = 10;
@@ -164,6 +223,9 @@ export const MEASURE_STALE_DAYS = 10;
 export const CONSISTENCY_GOAL = 0.8;
 
 export function consistency(entries, days = 30, endISO = todayISO()) {
+  /* Дні до першого запису не рахуються: тоді ще нічого не почалось.
+     Інакше три дні з трьох на старті виглядали як енсо на 12%. */
+  if (entries.length) days = Math.max(1, Math.min(days, daysBetween(entries[0].date, endISO) + 1));
   const start = addDays(endISO, -(days - 1));
   const hit = new Set(entries.filter(e => e.date >= start && e.date <= endISO).map(e => e.date));
   return { filled: hit.size, days, ratio: hit.size / days };
@@ -237,5 +299,6 @@ export function fmtPct(v, digits = 1) {
 export function fmtSigned(v, digits = 2) {
   if (v == null || Number.isNaN(v)) return '—';
   const s = v.toFixed(digits);
+  if (Number(s) === 0) return (0).toFixed(digits);   // не «−0.00»
   return v > 0 ? `+${s}` : s.replace('-', '−');   // U+2212, а не дефіс
 }

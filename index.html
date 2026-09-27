@@ -115,13 +115,19 @@
     <h1 class="head__name">тренд</h1>
   </div>
 
+  <!-- з'являється з першим обміром: до того перемикати нема на що -->
+  <div class="ranges ranges--metric" id="metric" role="tablist" hidden>
+    <button role="tab" data-metric="kg"  aria-selected="true">вага</button>
+    <button role="tab" data-metric="fat" aria-selected="false">жир</button>
+  </div>
+
   <div class="ranges" id="ranges" role="tablist">
     <button role="tab" data-range="30" aria-selected="true">30 днів</button>
     <button role="tab" data-range="90" aria-selected="false">90 днів</button>
     <button role="tab" data-range="0"  aria-selected="false">усе</button>
   </div>
 
-  <svg class="chart" id="chart" role="img" aria-label="Графік ваги"></svg>
+  <svg class="chart" id="chart" role="img" aria-label="Графік тренду"></svg>
 
   <hr class="rule">
 

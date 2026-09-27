@@ -2,9 +2,9 @@
 
 import * as db from './db.js';
 import {
-  todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween,
+  todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween, addDays,
   buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast, marksTally, totalWeighins,
-  lossPctPerWeek, isTooFast, bodyFatPct,
+  lossPctPerWeek, isTooFast, buildFatSeries, fatRatePerMonth,
   CONSISTENCY_GOAL, FAST_LOSS_PCT, MEASURE_STALE_DAYS,
 } from './calc.js';
 import { renderChart, renderEnso } from './chart.js';
@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 20;
+const VERSION = 21;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -24,6 +24,7 @@ const state = {
   photos: [],
   profile: null,
   range: 30,
+  metric: 'kg',          // що на графіку «тренд»: 'kg' або 'fat'
   compareMode: false,
   comparePick: [],
 };
@@ -50,9 +51,33 @@ async function init() {
   bindPhotos();
 
   $('version').textContent = `версія ${VERSION}`;
-  $('today-date').textContent = fmtShort(todayISO());
-  $('kou-name').textContent = currentKou().name;
+  showDay();
+  renderAll();
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshIfNewDay();
+  });
+  window.addEventListener('pageshow', refreshIfNewDay);
+}
+
+/* ── новий день у відкритому застосунку ──
+ *
+ * iOS не закриває застосунок з домашнього екрана, а тримає його у фоні
+ * годинами. Вранці він повертається тим, що намалював учора: вчорашня
+ * дата, «записано», натиснуті перемикачі — і тап по «білок» тоді
+ * вимикає його замість увімкнути. Тому при поверненні звіряємо дату. */
+
+let shownDay = null;
+
+function showDay() {
+  shownDay = todayISO();
+  $('today-date').textContent = fmtShort(shownDay);
+  $('kou-name').textContent = currentKou().name;
+}
+
+function refreshIfNewDay() {
+  if (todayISO() === shownDay) return;
+  showDay();
   renderAll();
 }
 
@@ -324,37 +349,41 @@ async function saveWeight() {
   renderAll();
 }
 
-async function upsertToday(patch) {
-  const iso = todayISO();
-  const prev = todayRecord() || { date: iso, weight: null, protein: false, trained: false };
-  const rec = { ...prev, ...patch, date: iso };
-  await db.daily.put(rec);
-  state.entries = await db.daily.all();
-  if (!state.profile.startDate) {
-    // найраніший наявний запис, а не сьогодні: інакше після відновлення
-    // з бекапу початок відліку зсунувся б на день імпорту
-    const start = state.entries.length ? state.entries[0].date : iso;
-    state.profile = { ...state.profile, startDate: start };
-    await db.setProfile({ startDate: start });
-  }
+/* Та сама черга, що й в обмірів: два швидкі тапи (білок, одразу
+   тренування) інакше читали б однаковий старий запис, і другий
+   перетирав би перший. Попередній стан — з бази, а не з пам'яті. */
+let dailyQueue = Promise.resolve();
+
+function upsertToday(patch) {
+  const run = dailyQueue.then(async () => {
+    const iso = todayISO();
+    const prev = (await db.daily.get(iso)) || { date: iso, weight: null, protein: false, trained: false };
+    await db.daily.put({ ...prev, ...patch, date: iso });
+    state.entries = await db.daily.all();
+    if (!state.profile.startDate) {
+      // найраніший наявний запис, а не сьогодні: інакше після відновлення
+      // з бекапу початок відліку зсунувся б на день імпорту
+      const start = state.entries.length ? state.entries[0].date : iso;
+      state.profile = { ...state.profile, startDate: start };
+      await db.setProfile({ startDate: start });
+    }
+  });
+  dailyQueue = run.catch(() => {});   // одна невдача не має заклинити чергу
+  return run;
 }
 
 /* ═════════════════════════  склад тіла  ═════════════════════════ */
 
 /**
- * Останній обмір, з якого формула дала число.
- * Шукаємо з кінця, а не беремо просто найновіший запис: неповний
- * сьогоднішній обмір не має гасити цифру. Шия тижнями стоїть на
- * місці, і забути її — не причина втратити показник.
+ * Тренд жиру на дату останнього обміру, з якого формула дала число.
+ * Не сирий обмір: як і з вагою, головна цифра — згладжена. Неповні
+ * обміри пропускаються, тож забута шия не гасить показник.
  */
 function latestMeasured() {
-  const { sex, height } = state.profile;
-  for (let i = state.weekly.length - 1; i >= 0; i--) {
-    const rec = state.weekly[i];
-    const pct = bodyFatPct({ sex, height, neck: rec.neck, waist: rec.waist, hips: rec.hips });
-    if (pct != null) return { date: rec.date, pct };
-  }
-  return null;
+  const fat = buildFatSeries(state.weekly, state.profile);
+  if (!fat.length) return null;
+  const last = fat[fat.length - 1];
+  return { date: last.date, pct: last.trend };
 }
 
 /* Записи йдуть чергою, і попередній стан читається з бази, а не з
@@ -364,13 +393,14 @@ function latestMeasured() {
 let weeklyQueue = Promise.resolve();
 
 function upsertWeekly(patch) {
-  weeklyQueue = weeklyQueue.then(async () => {
+  const run = weeklyQueue.then(async () => {
     const iso = todayISO();
     const prev = (await db.weekly.get(iso)) || { date: iso };
     await db.weekly.put({ ...prev, ...patch, date: iso });
     state.weekly = await db.weekly.all();
   });
-  return weeklyQueue;
+  weeklyQueue = run.catch(() => {});
+  return run;
 }
 
 /* ═════════════════════════  тренд  ═════════════════════════ */
@@ -383,11 +413,39 @@ function bindTrend() {
     state.range = Number(btn.dataset.range);
     renderTrend();
   });
+  $('metric').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-metric]');
+    if (!btn) return;
+    for (const b of $('metric').children) b.setAttribute('aria-selected', String(b === btn));
+    state.metric = btn.dataset.metric;
+    renderTrend();
+  });
+}
+
+/** Точки в межах обраного діапазону. «усе» — без обрізання. */
+function inRange(points) {
+  if (!(state.range > 0)) return points;
+  const start = addDays(todayISO(), -(state.range - 1));
+  const i = points.findIndex(p => p.date >= start);
+  if (i < 0) return points.slice(-1);
+  /* рідкі точки (жир) заходять у вікно лінією з попередньої, а не
+     обриваються на першому обмірі всередині: інакше при тижневому
+     ритмі 30 днів часто показували б три точки замість чотирьох */
+  return points.slice(i > 0 && points[i].date > start ? i - 1 : i);
 }
 
 function renderTrend() {
+  const fat = buildFatSeries(state.weekly, state.profile);
+  /* Перемикач з'являється з першим обміром: до того на «жир» нема що
+     показати, а порожній графік — той самий докір, що й порожній рядок. */
+  $('metric').hidden = !fat.length;
+  if (fat.length && state.metric === 'fat') renderFatTrend(fat);
+  else renderWeightTrend();
+}
+
+function renderWeightTrend() {
   const full = buildSeries(state.entries);
-  const series = state.range > 0 ? full.slice(-state.range) : full;
+  const series = inRange(full).map(p => ({ date: p.date, raw: p.weight, trend: p.trend, gap: p.weight == null }));
 
   renderChart($('chart'), series);
 
@@ -424,6 +482,43 @@ function renderTrend() {
   }
 }
 
+/* ── тренд жиру ──
+ * Той самий графік і ті самі рядки, інші дані. Лінія йде через обміри,
+ * між ними — пряма: тиждень між обмірами — це ритм, а не пропуск.
+ * Золотою тріщиною стає лише проміжок, довший за MEASURE_STALE_DAYS.
+ * Ні цілі, ні лінії «до 15%», ні попереджень про темп — тільки рух. */
+function renderFatTrend(fat) {
+  const today = todayISO();
+  const pts = fat.map((p, i) => ({
+    date: p.date, raw: p.pct, trend: p.trend,
+    gap: i > 0 && daysBetween(fat[i - 1].date, p.date) >= MEASURE_STALE_DAYS,
+  }));
+  const last = fat[fat.length - 1];
+  // лінія доходить до сьогодні, як і у ваги; давно не міряно — тріщиною
+  if (last.date < today) {
+    pts.push({ date: today, raw: null, trend: last.trend, gap: daysBetween(last.date, today) >= MEASURE_STALE_DAYS });
+  }
+
+  // один обмір — ще не лінія, а горизонталь до сьогодні нічого не каже
+  renderChart($('chart'), fat.length < 2 ? [] : inRange(pts),
+    { fmt: v => fmtPct(v), empty: 'ще замало обмірів' });
+
+  const first = fat[0];
+  const total = last.trend - first.trend;
+  const rate = fatRatePerMonth(fat);
+
+  $('k-start').textContent = `${fmtPct(first.trend)} · ${fmtShort(first.date)}`;
+  $('k-now').textContent = fmtPct(last.trend);
+
+  $('k-total').textContent = `${fmtSigned(total, 1)}%`;
+  $('k-total').className = 'kv__v' + (total < -0.2 ? '' : ' is-dim');
+
+  $('k-rate').textContent = rate == null ? '—' : `${fmtSigned(rate, 1)}% / міс`;
+  $('k-rate').className = 'kv__v';
+
+  $('rate-note').hidden = true;
+}
+
 /* ═════════════════════════  записи  ═════════════════════════ */
 
 function bindLog() {
@@ -453,8 +548,7 @@ function bindLog() {
     const sex = btn.dataset.sex;
     state.profile = { ...state.profile, sex };
     await db.setProfile({ sex });
-    renderToday();
-    renderLog();
+    renderAll();
   });
 
   /* Обміри зберігаються так само, як профіль: по change, без кнопки.
@@ -483,6 +577,7 @@ function bindProfileField(id, key, validate) {
     state.profile = { ...state.profile, [key]: v };
     await db.setProfile({ [key]: v });
     renderToday();                       // зріст живить формулу Navy, тобто % жиру
+    renderTrend();
     toast('збережено');
   });
 }
@@ -494,8 +589,7 @@ function bindMeasure(id, key, lo, hi) {
     const v = parseFloat(raw);
     if (!Number.isFinite(v) || v < lo || v > hi) { renderLog(); return; }   // тихо відкочуємо
     await upsertWeekly({ [key]: v });
-    renderToday();
-    renderLog();
+    renderAll();
     toast('збережено');
   });
 }

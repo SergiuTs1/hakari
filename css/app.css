@@ -265,6 +265,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   border-bottom: 1px solid transparent;
 }
 .ranges button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--ink-line); }
+/* вага / жир — над діапазонами й ближче до них: це одна панель, два питання */
+.ranges--metric { margin-bottom: 14px; }
 
 /* ─────────────────────────  пари ключ–значення  ───────────────────────── */
 

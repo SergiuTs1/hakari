@@ -5,7 +5,7 @@
  * Без рамок, без сітки, без легенди — тільки сама лінія й дві дати.
  */
 
-import { fmtShort, fmtKg } from './calc.js';
+import { fmtShort, fmtKg, daysBetween } from './calc.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -19,15 +19,21 @@ const el = (name, attrs = {}) => {
 };
 
 /**
+ * Один графік на дві величини — вагу й жир. Точки не мусять іти щодня:
+ * x рахується від дати, тож тижневі обміри лягають на свої місця.
+ *
  * @param {SVGElement} svg     порожній <svg class="chart">
- * @param {Array}      series  результат buildSeries()
+ * @param {Array<{date, raw: number|null, trend: number, gap: boolean}>} series
+ *        raw — сирий вимір (null, якщо того дня не було), gap — відрізок,
+ *        що веде до цієї точки, пройшов крізь пропуск
+ * @param {{fmt?: Function, empty?: string}} opts
  */
-export function renderChart(svg, series) {
+export function renderChart(svg, series, { fmt = fmtKg, empty = 'ще замало записів' } = {}) {
   svg.textContent = '';
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
   if (series.length < 2) {
-    svg.appendChild(text(W / 2, H / 2, 'ще замало записів', { 'text-anchor': 'middle' }));
+    svg.appendChild(text(W / 2, H / 2, empty, { 'text-anchor': 'middle' }));
     return;
   }
 
@@ -39,7 +45,7 @@ export function renderChart(svg, series) {
   const vals = [];
   for (const p of series) {
     vals.push(p.trend);
-    if (p.weight != null) vals.push(p.weight);
+    if (p.raw != null) vals.push(p.raw);
   }
 
   let lo = Math.min(...vals), hi = Math.max(...vals);
@@ -49,13 +55,14 @@ export function renderChart(svg, series) {
 
   const plotW = W - PAD.l - PAD.r;
   const plotH = H - PAD.t - PAD.b;
-  const x = i => PAD.l + (i / (series.length - 1)) * plotW;
+  const spanDays = daysBetween(series[0].date, series[series.length - 1].date) || 1;
+  const x = i => PAD.l + (daysBetween(series[0].date, series[i].date) / spanDays) * plotW;
   const y = v => PAD.t + (1 - (v - lo) / (hi - lo)) * plotH;
 
-  /* — сирі зважування: ледь помітні порожні кола — */
+  /* — сирі виміри: ледь помітні порожні кола — */
   series.forEach((p, i) => {
-    if (p.weight == null) return;
-    svg.appendChild(el('circle', { class: 'chart__raw', cx: x(i), cy: y(p.weight), r: 1.9, 'stroke-width': 1 }));
+    if (p.raw == null) return;
+    svg.appendChild(el('circle', { class: 'chart__raw', cx: x(i), cy: y(p.raw), r: 1.9, 'stroke-width': 1 }));
   });
 
   /* — тренд: штрих тушшю, а в дні без зважування — золота тріщина —
@@ -74,8 +81,8 @@ export function renderChart(svg, series) {
   /* — межі шкали: дві цифри, більше нічого — */
   const realHi = Math.max(...series.map(p => p.trend));
   const realLo = Math.min(...series.map(p => p.trend));
-  svg.appendChild(text(PAD.l, y(realHi) - 8, fmtKg(realHi)));
-  svg.appendChild(text(PAD.l, y(realLo) + 14, fmtKg(realLo)));
+  svg.appendChild(text(PAD.l, y(realHi) - 8, fmt(realHi)));
+  svg.appendChild(text(PAD.l, y(realLo) + 14, fmt(realLo)));
 
   /* — дати: тільки початок і кінець — */
   svg.appendChild(text(PAD.l, H - 8, fmtShort(series[0].date)));
@@ -83,13 +90,13 @@ export function renderChart(svg, series) {
 }
 
 /**
- * Ділить ряд на відрізки «є зважування» / «пропуск». Лінія не рветься:
+ * Ділить ряд на відрізки «є виміри» / «пропуск». Лінія не рветься:
  * кожен новий відрізок починається з останньої точки попереднього.
  */
 function splitGaps(series) {
   const out = [];
   for (let i = 1; i < series.length; i++) {
-    const gap = series[i].weight == null;
+    const gap = series[i].gap;
     const last = out[out.length - 1];
     if (last && last.gap === gap) last.pts.push(i);
     else out.push({ gap, pts: [i - 1, i] });
