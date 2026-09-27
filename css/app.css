@@ -196,6 +196,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .entry__done { font: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-dim); }
 
 .entry__save {
+  position: relative;
+  cursor: pointer;
   font: var(--t-label);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
@@ -203,8 +205,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   padding: 8px 2px 8px 14px;
   transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
-.entry__save:disabled { opacity: .28; }
-.entry__save:not(:disabled) { color: var(--accent); }
+.entry__save:has(:disabled) { opacity: .28; cursor: default; }
+.entry__save:not(:has(:disabled)) { color: var(--accent); }
+
+/* Схований системний перемикач усередині «записати» й перемикачів.
+   Не display: none — так він лишається в дереві доступності для
+   VoiceOver. Палець торкається підпису, підпис перемикає перемикач,
+   і iPhone дає тактильний тік. */
+.haptic-sw {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* перемикачі — один тап */
 .toggles { display: flex; gap: 10px; margin-top: 22px; }
@@ -219,8 +233,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
   color: var(--fg-dim);
 }
-.toggle { font: var(--t-serif); }
-.toggle[aria-pressed="true"] { border-color: var(--ink-line); color: var(--fg); }
+.toggle { font: var(--t-serif); cursor: pointer; -webkit-user-select: none; user-select: none; }
+.toggle:has(:checked) { border-color: var(--ink-line); color: var(--fg); }
 
 /* Заливка знизу вгору. Перемикачі — єдина тактильна дія в застосунку,
    а віддачею на неї була сама лише зміна кольору рамки. Тон тонований,
@@ -235,7 +249,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   transform-origin: bottom;
   transition: transform .22s var(--ease);
 }
-.toggle[aria-pressed="true"]::before { transform: scaleY(1); }
+.toggle:has(:checked)::before { transform: scaleY(1); }
 
 /* Підсумок за тиждень — поруч із самими перемикачами, там, де дію й
    роблять. Тихіший за кнопки: це відповідь, а не місце для тапу. */

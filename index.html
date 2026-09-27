@@ -83,12 +83,23 @@
            «записано»: сире число на екрані цілий день — те, що
            тригерить емоцію. Цифра лишається за один тап по полю. -->
       <span class="entry__done" id="entry-done" hidden>записано</span>
-      <button class="entry__save" id="save" disabled>записати</button>
+      <!-- Не кнопка, а підпис зі схованим системним перемикачем: на
+           iPhone тактильний тік дає лише справжній дотик до перемикача,
+           програмно його не викликати. Зовні — та сама «записати». -->
+      <label class="entry__save" id="save">
+        <input class="haptic-sw" id="save-sw" type="checkbox" switch disabled>записати
+      </label>
     </div>
 
     <div class="toggles">
-      <button class="toggle" id="t-protein" aria-pressed="false">білок</button>
-      <button class="toggle" id="t-trained" aria-pressed="false">тренування</button>
+      <!-- перемикачі — справжні, лише сховані: стан живе в checked,
+           а дотик до них дає тактильний тік -->
+      <label class="toggle" id="t-protein">
+        <input class="haptic-sw" id="t-protein-sw" type="checkbox" switch>білок
+      </label>
+      <label class="toggle" id="t-trained">
+        <input class="haptic-sw" id="t-trained-sw" type="checkbox" switch>тренування
+      </label>
     </div>
 
     <!-- Підсумок перемикачів за тиждень: єдина віддача за них.
