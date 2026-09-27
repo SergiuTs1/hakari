@@ -33,6 +33,20 @@
   <input type="checkbox" switch>
 </label>
 
+<!-- 6–8: перемикач схований усередині кнопки, але торкається його
+     справжній палець, а не код -->
+<label class="real">6 — кнопка-підпис, перемикач display: none
+  <input type="checkbox" switch style="display:none">
+</label>
+
+<label class="real" style="position:relative">7 — кнопка-підпис, перемикач прозорий усередині
+  <input type="checkbox" switch style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
+</label>
+
+<div class="real" style="position:relative">8 — прозорий перемикач на всю кнопку
+  <input type="checkbox" switch style="position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0">
+</div>
+
 <script>
   const ios = (navigator.userAgent.match(/OS (\d+)_(\d+)/) || []).slice(1).join('.') || 'не iOS?';
   const probe = document.createElement('input');
