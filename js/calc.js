@@ -209,6 +209,60 @@ export function fatRatePerMonth(fat, days = 56) {
   return s == null ? null : s * 30;
 }
 
+/* ── рекомпозиція ─────────────────────────────────────────────
+ *
+ * Вага за чотири тижні майже стоїть, а жир за той самий час пішов
+ * униз — отже, те, що зникло з жиру, прийшло в м'яз. Саме той
+ * момент, коли без цієї підказки найбільше хочеться все кинути:
+ * ваги кажуть «нічого не відбувається».
+ *
+ * Показується лише тоді, коли це правда. В інші тижні рядка просто
+ * немає — його неможливо «не досягти». Пороги грубі навмисно: краще
+ * змовчати, ніж пообіцяти рекомпозицію на шумі одного обміру.
+ */
+
+export const RECOMP_DAYS = 28;
+const RECOMP_FLAT_KG = 0.5;     // вага в межах ±0.5 кг за чотири тижні — «стоїть»
+const RECOMP_FAT_DROP = 0.3;    // тренд жиру впав щонайменше на 0.3%
+
+export function isRecomposition(series, fat, today = todayISO()) {
+  if (series.length < RECOMP_DAYS || fat.length < 3) return false;
+  const last = fat[fat.length - 1];
+  if (daysBetween(last.date, today) >= MEASURE_STALE_DAYS) return false;   // стара новина — не новина
+
+  const w = series[series.length - 1].trend - series[series.length - RECOMP_DAYS].trend;
+  const from = addDays(last.date, -RECOMP_DAYS);
+  let base = null;
+  for (const p of fat) if (p.date <= from) base = p;
+  if (!base) return false;
+
+  return Math.abs(w) < RECOMP_FLAT_KG && last.trend - base.trend <= -RECOMP_FAT_DROP;
+}
+
+/* ── звичний день обмірів ─────────────────────────────────────
+ * День тижня, у який найчастіше міряються. Застосунок його не
+ * призначає й ніколи не каже «пропущено» — він лише помічає ритм,
+ * який уже склався, і в цей день тихо про нього нагадує.
+ * null — ритму ще немає: менше трьох обмірів або жоден день не
+ * тримає хоча б половини з них.
+ */
+export function usualWeekday(weekly) {
+  if (weekly.length < 3) return null;
+  const count = new Array(7).fill(0);
+  for (const r of weekly) count[fromISO(r.date).getDay()]++;
+  const best = count.indexOf(Math.max(...count));
+  return count[best] * 2 >= weekly.length ? best : null;
+}
+
+/** Останнє значення поля (neck, waist, hips) з обміру до дати `before`. */
+export function previousMeasure(weekly, key, before) {
+  for (let i = weekly.length - 1; i >= 0; i--) {
+    const r = weekly[i];
+    if (r.date < before && typeof r[key] === 'number') return r[key];
+  }
+  return null;
+}
+
 /* Після скількох днів цифра вважається підстарілою й гасне.
    Десять, а не сім: пропущена неділя — не причина щось міняти. */
 export const MEASURE_STALE_DAYS = 10;

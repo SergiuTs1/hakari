@@ -137,6 +137,10 @@
   <div class="kv"><span class="label">темп</span><span class="kv__v" id="k-rate">—</span></div>
 
   <p class="quiet" id="rate-note" hidden></p>
+
+  <!-- Лише коли це правда: вага за чотири тижні стоїть, а жир іде.
+       Саме тоді ваги кажуть «нічого не відбувається». -->
+  <p class="recomp" id="recomp" hidden>вага стоїть, а жир іде —<br>м’яз тримається</p>
 </section>
 
 <!-- ═══════════════════  записи  ═══════════════════ -->
@@ -168,7 +172,12 @@
 
   <hr class="rule">
 
-  <span class="label">обміри</span>
+  <!-- «звичний день» з'являється лише в той день тижня, коли зазвичай
+       міряєшся, і тільки поки сьогоднішній обмір не зроблено -->
+  <div class="measure-head">
+    <span class="label">обміри</span>
+    <span class="measure-head__day" id="measure-day" hidden>сьогодні твій звичний день</span>
+  </div>
   <div class="field">
     <label for="m-neck">шия, см</label>
     <input id="m-neck" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
@@ -184,7 +193,14 @@
 
   <div class="kv kv--bare">
     <span class="label">останній обмір</span>
-    <span class="kv__v" id="k-measured">—</span>
+    <span class="kv__v">
+      <!-- печатка: сьогоднішній обмір повний. Ханко без знака —
+           сама форма каже «зараховано», слова тут зайві -->
+      <svg class="seal" id="seal" viewBox="0 0 20 20" aria-hidden="true" hidden>
+        <path class="seal__ink" d="M3.2 2.6 L17.1 3.3 Q17.6 3.4 17.5 4 L16.9 16.8 Q16.8 17.4 16.2 17.3 L3.4 16.6 Q2.8 16.5 2.9 15.9 L2.7 3.3 Q2.7 2.6 3.2 2.6Z"/>
+        <path class="seal__rim" d="M5.3 5 L14.9 5.4 L14.6 14.9 L5.4 14.5 Z"/>
+      </svg><span id="k-measured">—</span>
+    </span>
   </div>
 
   <!-- Протокол вирішує все: похибка в сантиметр дає ~0.7% жиру, і шия

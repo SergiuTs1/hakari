@@ -5,9 +5,10 @@ import {
   todayISO, fmtShort, fmtKg, fmtSigned, fmtPct, daysBetween, addDays,
   buildSeries, rateKgPerWeek, consistency, recentMap, daysSinceLast, marksTally, totalWeighins,
   lossPctPerWeek, isTooFast, buildFatSeries, fatRatePerMonth,
+  isRecomposition, usualWeekday, previousMeasure,
   CONSISTENCY_GOAL, FAST_LOSS_PCT, MEASURE_STALE_DAYS,
 } from './calc.js';
-import { renderChart, renderEnso } from './chart.js';
+import { renderChart, renderEnso, playChart } from './chart.js';
 import { currentKou } from './kou.js';
 import { photoTakenDate } from './exif.js';
 
@@ -15,7 +16,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 21;
+const VERSION = 22;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -155,6 +156,7 @@ function switchScreen(btn) {
     if (current) current.classList.remove('is-active', 'is-leaving');
     next.classList.add('is-active');
     window.scrollTo(0, 0);
+    if (next.id === 's-trend') playChart($('chart'));   // мазок домальовується, коли його видно
   };
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -412,6 +414,7 @@ function bindTrend() {
     for (const b of $('ranges').children) b.setAttribute('aria-selected', String(b === btn));
     state.range = Number(btn.dataset.range);
     renderTrend();
+    playChart($('chart'));
   });
   $('metric').addEventListener('click', e => {
     const btn = e.target.closest('button[data-metric]');
@@ -419,6 +422,7 @@ function bindTrend() {
     for (const b of $('metric').children) b.setAttribute('aria-selected', String(b === btn));
     state.metric = btn.dataset.metric;
     renderTrend();
+    playChart($('chart'));
   });
 }
 
@@ -441,13 +445,22 @@ function renderTrend() {
   $('metric').hidden = !fat.length;
   if (fat.length && state.metric === 'fat') renderFatTrend(fat);
   else renderWeightTrend();
+
+  /* рекомпозиція — на обох графіках: на вазі вона потрібна найбільше,
+     бо саме там здається, що нічого не рухається */
+  $('recomp').hidden = !isRecomposition(buildSeries(state.entries), fat);
+}
+
+/* позначки фото під лінією графіка: тап відкриває знімок */
+function chartPhotos() {
+  return { photos: state.photos.map(p => ({ date: p.date, id: p.id })), onPhoto: openPhoto };
 }
 
 function renderWeightTrend() {
   const full = buildSeries(state.entries);
   const series = inRange(full).map(p => ({ date: p.date, raw: p.weight, trend: p.trend, gap: p.weight == null }));
 
-  renderChart($('chart'), series);
+  renderChart($('chart'), series, { unit: ' кг', ...chartPhotos() });
 
   if (!full.length) {
     for (const id of ['k-start', 'k-now', 'k-total', 'k-rate']) $(id).textContent = '—';
@@ -501,7 +514,7 @@ function renderFatTrend(fat) {
 
   // один обмір — ще не лінія, а горизонталь до сьогодні нічого не каже
   renderChart($('chart'), fat.length < 2 ? [] : inRange(pts),
-    { fmt: v => fmtPct(v), empty: 'ще замало обмірів' });
+    { fmt: v => fmtPct(v), empty: 'ще замало обмірів', rawMark: 'enso', ...chartPhotos() });
 
   const first = fat[0];
   const total = last.trend - first.trend;
@@ -590,8 +603,29 @@ function bindMeasure(id, key, lo, hi) {
     if (!Number.isFinite(v) || v < lo || v > hi) { renderLog(); return; }   // тихо відкочуємо
     await upsertWeekly({ [key]: v });
     renderAll();
-    toast('збережено');
+    toast(measureFeedback(key, v));
   });
+}
+
+/* ── відгук одразу після обміру ──
+   Віддача в ту саму секунду, а не десь на графіку: сантиметри відчутніші
+   за відсотки й менше шумлять. Число з'являється тільки після вводу —
+   показане заздалегідь, воно підказувало б руці, що міряти.
+   Лише талія й стегна: шия, що зменшилась, у формулі Navy підіймає
+   відсоток, тож «−0.5 см» там читалось би як успіх, яким воно не є.
+   Стало більше — просто «збережено», без мінуса й без плюса. */
+function measureFeedback(key, v) {
+  const name = { waist: 'талія', hips: 'стегна' }[key];
+  const prev = name ? previousMeasure(state.weekly, key, todayISO()) : null;
+  const down = prev == null ? 0 : prev - v;
+  return down >= 0.1 ? `${name} −${down.toFixed(1)} см від минулого разу` : 'збережено';
+}
+
+/** Сьогоднішній обмір повний — усе, що потрібно формулі. */
+function measuredToday() {
+  const r = state.weekly.find(w => w.date === todayISO());
+  if (!r || !r.neck || !r.waist) return false;
+  return state.profile.sex !== 'f' || !!r.hips;
 }
 
 function renderLog() {
@@ -685,6 +719,12 @@ function renderLog() {
   const m = latestMeasured();
   $('k-measured').textContent = m ? fmtShort(m.date) : '—';
   $('k-measured').className = 'kv__v' + (m ? '' : ' is-dim');
+
+  /* печатка й «звичний день» — два боки того самого ритму */
+  const done = measuredToday();
+  $('seal').toggleAttribute('hidden', !done);   // у SVG немає властивості .hidden, лише атрибут
+  const usual = usualWeekday(state.weekly);
+  $('measure-day').hidden = done || usual == null || usual !== new Date().getDay();
 
   /* Поки зросту або статі немає — просимо їх, а не рахуємо з null.
      Запит живе тут, а не на «сьогодні»: головний екран не місце для вимог. */

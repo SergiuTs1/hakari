@@ -11,7 +11,8 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* волокна васі поверх паперу; колір і густина — у токенах */
+  background: var(--paper-grain), var(--bg);
   color: var(--fg);
   font: var(--t-body);
   -webkit-font-smoothing: antialiased;
@@ -78,7 +79,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* 22px, а не 44: при 88px між секціями й 55px усередині секції
    відстань між групами була вдвічі більша за саму групу, і сторінка
    читалась як розсипана, а не згрупована. */
-.rule { height: 1px; background: var(--hairline); border: 0; margin: var(--stack) 0; }
+.rule { height: 2px; border: 0; margin: var(--stack) 0; }
+
+/* Мазок замість лінійки: два пікселі, обрізані веретеном — густо
+   ближче до лівого краю, нанівець на кінцях. Читається як один рух
+   пензля по паперу, а не як рамка таблиці. */
+.rule,
+.kv::after {
+  background: var(--brush);
+  clip-path: polygon(0 50%, 14% 0, 78% 25%, 100% 50%, 78% 75%, 14% 100%);
+}
 
 /* ─────────────────────────  головна цифра  ───────────────────────── */
 
@@ -249,11 +259,27 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 .chart { width: 100%; display: block; overflow: visible; }
 .chart__raw    { fill: none; stroke: var(--fg-dim); opacity: .36; }
-.chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.chart__raw--enso { stroke: var(--ink-line); stroke-width: 1.1; stroke-linecap: round; opacity: .55; }
+/* Мазок тренду — три шари, як в енсо: різниця в товщині мала, тож
+   уступи зливаються в звуження, а не в намистину. */
+.chart__trend  { fill: none; stroke: var(--ink-line); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.chart__trend--mid { stroke-width: 1.85; }
+.chart__trend--wet { stroke-width: 2.4; }
 /* дні без зважування: тренд там стоїть рівно, і лінія про це каже
    тим самим золотом, що й пропуски в календарі */
 .chart__trend--gap { stroke: var(--kin); stroke-width: 1.1; }
 .chart__tick   { font: var(--t-label); letter-spacing: .1em; fill: var(--fg-dim); }
+.chart { cursor: pointer; }
+
+/* позначки фото — крихітні рамки, тихіші за самі дати */
+.chart__photo { fill: none; stroke: var(--fg-dim); stroke-width: .9; opacity: .8; }
+
+/* підказка по тапу стає на місце дат */
+.chart__tick--date { transition: opacity .2s var(--ease); }
+.chart.is-probing .chart__tick--date { opacity: 0; }
+.chart__probe .chart__tick { fill: var(--fg); }
+.chart__probe-line { stroke: var(--hairline); stroke-width: 1; }
+.chart__probe-dot  { fill: var(--ink-line); }
 
 .ranges { display: flex; gap: 22px; margin-bottom: 26px; }
 .ranges button {
@@ -270,8 +296,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ─────────────────────────  пари ключ–значення  ───────────────────────── */
 
-.kv { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid var(--hairline); gap: 16px; }
-.kv:last-child, .kv--bare { border-bottom: 0; }
+.kv { position: relative; display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; gap: 16px; }
+.kv::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; }
+.kv:last-child::after, .kv--bare::after { content: none; }
 .kv__v { font-variant-numeric: tabular-nums; font-size: 15px; }
 .kv__v.is-dim { color: var(--fg-dim); }
 .kv__v.is-kin { color: var(--kin); }
@@ -554,3 +581,33 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .okaeri { text-align: center; padding: 40px 0 var(--stack-lg); }
 .okaeri__word { font-family: var(--f-serif); font-size: 25px; display: block; margin-bottom: 18px; }
 .okaeri__text { color: var(--fg-dim); font-size: 14px; line-height: 1.85; }
+
+/* ─────────────────────────  обміри: ритм і печатка  ───────────────────────── */
+
+/* «звичний день» — поруч із підписом обмірів, тим самим тихим кеглем.
+   Лише помічає ритм, що вже склався; в інші дні його немає. */
+.measure-head { display: flex; align-items: baseline; justify-content: space-between; }
+.measure-head__day { font-size: 13px; color: var(--fg-dim); }
+
+/* Печатка: тижневий обмір зроблено. Ханко без знака всередині —
+   нерівний квадрат туші, трохи під кутом, ніби притиснули рукою. */
+.seal {
+  display: inline-block;
+  width: 17px; height: 17px;
+  margin-right: 10px;
+  vertical-align: -3px;
+  transform: rotate(-5deg);
+  animation: stamp .5s var(--ease);
+}
+/* заливка тушшю з рамкою кольору паперу всередині — так виглядає
+   відбиток, а не порожній квадратик, який читався б як «не відмічено» */
+.seal__ink { fill: var(--ink-line); opacity: .82; }
+.seal__rim { fill: none; stroke: var(--bg); stroke-width: 1.1; stroke-linejoin: round; opacity: .9; }
+@keyframes stamp {
+  from { opacity: 0; transform: rotate(-5deg) scale(1.5); }
+  60%  { opacity: 1; transform: rotate(-5deg) scale(.94); }
+  to   { transform: rotate(-5deg) scale(1); }
+}
+
+/* рекомпозиція — тихий рядок під графіком, мохом, а не тривогою */
+.recomp { text-align: center; font-size: 14px; line-height: 1.8; color: var(--koke); padding: 20px 0 4px; }
