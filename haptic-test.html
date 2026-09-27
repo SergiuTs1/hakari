@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>hakari — перевірка вібрації</title>
+<link rel="stylesheet" href="css/tokens.css">
+<!-- Тимчасова сторінка: з'ясувати, яким способом iPhone дає тактильний
+     тік. Даних застосунку не читає й не пише. Прибрати, щойно спосіб
+     знайдено. -->
+<style>
+  body { margin: 0; padding: 28px; background: var(--bg); color: var(--fg); font: var(--t-body); }
+  h1 { font: var(--t-serif); margin: 0 0 18px; }
+  .info { font-size: 13px; color: var(--fg-dim); line-height: 1.7; margin-bottom: 26px; }
+  button, .real {
+    display: block; width: 100%; text-align: left; font: inherit; color: var(--fg);
+    background: none; border: 1px solid var(--hairline); padding: 16px; margin-bottom: 10px;
+  }
+  .real { display: flex; justify-content: space-between; align-items: center; }
+  small { display: block; color: var(--fg-dim); font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>перевірка вібрації</h1>
+<p class="info" id="info"></p>
+
+<button data-v="1">1 — як зараз у застосунку<small>прихований перемикач у head, display: none</small></button>
+<button data-v="2">2 — те саме, але в body<small>display: none</small></button>
+<button data-v="3">3 — у body, прозорий<small>не display: none</small></button>
+<button data-v="4">4 — клік по самому перемикачу, а не підпису<small>прозорий, у body</small></button>
+
+<label class="real">5 — справжній перемикач, торкнись його сам
+  <input type="checkbox" switch>
+</label>
+
+<script>
+  const ios = (navigator.userAgent.match(/OS (\d+)_(\d+)/) || []).slice(1).join('.') || 'не iOS?';
+  const probe = document.createElement('input');
+  probe.setAttribute('switch', '');
+  document.getElementById('info').innerHTML =
+    `iOS: ${ios}<br>` +
+    `з домашнього екрана: ${navigator.standalone === true ? 'так' : 'ні'}<br>` +
+    `перемикач-switch підтримується: ${'switch' in probe ? 'так' : 'ні'}<br>` +
+    `navigator.vibrate: ${'vibrate' in navigator ? 'є' : 'немає'}`;
+
+  function make(where, hidden) {
+    const label = document.createElement('label');
+    label.setAttribute('aria-hidden', 'true');
+    if (hidden) label.style.display = 'none';
+    else label.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    label.appendChild(input);
+    where.appendChild(label);
+    return { label, input };
+  }
+
+  const variants = {
+    1: () => { const { label } = make(document.head, true); label.click(); label.remove(); },
+    2: () => { const { label } = make(document.body, true); label.click(); label.remove(); },
+    3: () => { const { label } = make(document.body, false); label.click(); label.remove(); },
+    4: () => { const { label, input } = make(document.body, false); input.click(); label.remove(); },
+  };
+
+  for (const btn of document.querySelectorAll('button[data-v]')) {
+    btn.addEventListener('click', () => variants[btn.dataset.v]());
+  }
+</script>
+</body>
+</html>
