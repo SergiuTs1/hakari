@@ -16,7 +16,7 @@ const $ = id => document.getElementById(id);
 
 /* Версія коду. Піднімати разом з CACHE у sw.js — показується внизу «записи»,
    щоб з телефону було видно, що саме зараз працює. */
-const VERSION = 22;
+const VERSION = 23;
 
 /* стан у пам'яті: усе перемальовуємо з нього, щоб не смикати базу */
 const state = {
@@ -317,6 +317,7 @@ function bindEntry() {
       const btn = $(id);
       const next = btn.getAttribute('aria-pressed') !== 'true';
       btn.setAttribute('aria-pressed', String(next));
+      haptic();                          // перемикач клацає в обидва боки, як справжній
       await upsertToday({ [key]: next });
       /* перемальовуємо тільки підсумок: renderToday() тут перезаписав би
          поле ваги просто під пальцем, поки цифру ще набирають */
@@ -345,6 +346,7 @@ function validateEntry() {
 async function saveWeight() {
   const w = parseWeight($('weight').value);
   if (w === null) return;
+  haptic();                              // до await: iOS рахує тік відповіддю на тап, лише поки той триває
   await upsertToday({ weight: w });
   $('weight').blur();
   toast('записано');
@@ -601,6 +603,10 @@ function bindMeasure(id, key, lo, hi) {
     const raw = inp.value.replace(',', '.').trim();
     const v = parseFloat(raw);
     if (!Number.isFinite(v) || v < lo || v > hi) { renderLog(); return; }   // тихо відкочуємо
+    /* тік — разом із печаткою: саме цей обмір добиває сьогоднішній
+       до повного. Рахуємо наперед, бо після await тап уже минув */
+    const today = state.weekly.find(w => w.date === todayISO()) || {};
+    if (!isComplete(today) && isComplete({ ...today, [key]: v })) haptic();
     await upsertWeekly({ [key]: v });
     renderAll();
     toast(measureFeedback(key, v));
@@ -621,11 +627,14 @@ function measureFeedback(key, v) {
   return down >= 0.1 ? `${name} −${down.toFixed(1)} см від минулого разу` : 'збережено';
 }
 
-/** Сьогоднішній обмір повний — усе, що потрібно формулі. */
-function measuredToday() {
-  const r = state.weekly.find(w => w.date === todayISO());
+/** Обмір повний — усе, що потрібно формулі. */
+function isComplete(r) {
   if (!r || !r.neck || !r.waist) return false;
   return state.profile.sex !== 'f' || !!r.hips;
+}
+
+function measuredToday() {
+  return isComplete(state.weekly.find(w => w.date === todayISO()));
 }
 
 function renderLog() {
@@ -1006,6 +1015,34 @@ function toast(msg, ms = 1900) {
   t.classList.add('is-on');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('is-on'), ms);
+}
+
+/* ── тактильний тік ──
+ *
+ * navigator.vibrate на iPhone не існує. Але системний перемикач
+ * (<input type="checkbox" switch>, Safari з iOS 18) при перемиканні
+ * сам дає легкий тік, як у Налаштуваннях. Тож на мить підкладаємо
+ * невидимий перемикач і клацаємо його підпис.
+ *
+ * Це трюк, а не API: якщо Apple його прибере, пропаде тільки тік.
+ * Працює лише всередині тапу — тому викликається до будь-якого await.
+ * Сили й патернів немає, і тіки тільки на «зроблено»: на помилках і
+ * попередженнях вібрація була б тактильним докором. Системне
+ * «Тактильний відгук» вимкнено — iOS мовчить сам. */
+function haptic() {
+  try {
+    if (navigator.vibrate) { navigator.vibrate(10); return; }   // Android: там є справжнє API
+    const label = document.createElement('label');
+    label.setAttribute('aria-hidden', 'true');
+    label.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    label.appendChild(input);
+    document.head.appendChild(label);
+    label.click();
+    label.remove();
+  } catch { /* тік — прикраса, його відсутність нічого не ламає */ }
 }
 
 function plural(n, one, few, many) {
